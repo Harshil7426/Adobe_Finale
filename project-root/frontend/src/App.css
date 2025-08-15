@@ -398,6 +398,7 @@ body {
   border-radius: 6px;
   font-size: 0.85em;
   color: #4a5568;
+  margin: 5px;
 }
 .file-info-chip span {
   white-space: nowrap;
@@ -490,7 +491,7 @@ body {
 .modal-confirm-btn:hover { background-color: #3182ce; }
 
 /* ===== Toast Notification ===== */
-.toast-notification {
+.toast {
   position: fixed;
   bottom: 30px;
   left: 30px;
@@ -512,132 +513,86 @@ body {
 @keyframes slideIn { to { transform: translateX(0); opacity: 1; } }
 @keyframes fadeOut { to { opacity: 0; transform: translateX(-100%); } }
 
-/* For PDF Viewer Page */
+
 .pdf-viewer-page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100vh;
-  padding: 20px;
+  display: grid;
+  grid-template-columns: 20% 60% 20%;
+  grid-template-rows: 1fr; /* Full height row */
+  height: 96vh;
+  background-color: #f5f5f5;
+  gap: 10px;
+  padding: 10px;
   box-sizing: border-box;
-  background-color: #f0f2f5;
+  width: 100vw;
+}
+
+/* Ensure every child fills height */
+.pdf-viewer-page > * {
+  height: 100%;
+}
+
+/* Sidebar (Left) */
+.sidebar {
   display: flex;
   flex-direction: column;
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-}
-
-.back-btn, .generate-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 1em;
-  font-weight: 500;
-  cursor: pointer;
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
+  height: 93vh;
 }
 
-.back-btn:hover, .generate-btn:hover {
-  background-color: #f5f5f5;
-  transform: translateY(-2px);
+/* Scrollable list should not push Generate btn out */
+.bulk-pdf-list {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 15px;
+  max-height: 400px;
+  cursor: pointer;
+}
+.bulk-pdf-item {
+  margin: 5px;
+  background-color: #ededed;
+  border-radius: 20px;
+  padding: 8px 12px;
+  
+  /* Ellipsis styling */
+  white-space: nowrap;      /* Keep text on one line */
+  overflow: hidden;         /* Hide overflow text */
+  text-overflow: ellipsis;  /* Show ... when text is too long */
 }
 
-.generate-btn {
-  background-color: #4CAF50;
-  color: #fff;
+
+/* Center PDF Viewer */
+.viewer-container {
+  background: #d1cccc;
+  border-radius: 20px;
+  padding: 10px;
+  display: flex;
+  height: 94vh;
+}
+.viewer-box {
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+.viewer-box iframe {
+  width: 100%;
+  height: 100%;
   border: none;
 }
 
-.generate-btn:hover {
-  background-color: #45a049;
-}
-
-.content-area {
-  flex-grow: 1;
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 20px;
-  background-color: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-}
-
-.bulk-pdf-list-container {
-  display: flex;
-  flex-direction: column;
-  background-color: #f8f9fa;
+/* Right Panel */
+.right-panel {
+  background: #fff;
   border-radius: 12px;
-  padding: 20px;
-  border: 1px solid #e2e8f0;
-}
-
-.list-header h3 {
-  font-size: 1.2em;
-  font-weight: 600;
-  margin-bottom: 15px;
-}
-
-.scrollable-list {
-  flex-grow: 1;
-  overflow-y: auto;
-  padding-right: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: #ccc transparent;
-}
-
-.scrollable-list::-webkit-scrollbar { width: 8px; }
-.scrollable-list::-webkit-scrollbar-track { background: transparent; }
-.scrollable-list::-webkit-scrollbar-thumb { background-color: #ccc; border-radius: 4px; border: 2px solid transparent; }
-
-
-.bulk-pdf-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background-color: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.bulk-pdf-item:hover {
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.bulk-pdf-item span {
-  font-size: 0.9em;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fresh-pdf-viewer {
-  flex-grow: 1;
-  background-color: #f5f5f5;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid #e2e8f0;
-}
-
-.adobe-viewer {
-  width: 100%;
-  height: 100%;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }

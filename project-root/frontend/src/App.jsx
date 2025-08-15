@@ -245,7 +245,7 @@ function App() {
                 onClick={handleStartTask} 
                 disabled={!activeTask || activeTask.status !== 'ready'}
               >
-                <FaPlay /> View Task
+                <FaPlay /> Start Analysis
               </button>
             </div>
           </div>
@@ -273,6 +273,13 @@ function App() {
                     </div>
                     <div className="card-file-list">
                       <div className="file-category">
+                        <p className="file-category-title">Fresh PDF (1)</p>
+                        <div className="file-info-chip">
+                          <FaFilePdf size={14} />
+                          <span>{task.fresh_files[0]}</span>
+                        </div>
+                      </div>
+                      <div className="file-category">
                         <p className="file-category-title">Bulk PDFs ({task.bulk_files.length})</p>
                         {task.bulk_files.map(file => (
                           <div key={file} className="file-info-chip">
@@ -281,13 +288,7 @@ function App() {
                           </div>
                         ))}
                       </div>
-                      <div className="file-category">
-                        <p className="file-category-title">Fresh PDF (1)</p>
-                        <div className="file-info-chip">
-                          <FaFilePdf size={14} />
-                          <span>{task.fresh_files[0]}</span>
-                        </div>
-                      </div>
+                      
                     </div>
                   </div>
                 ))
@@ -330,7 +331,7 @@ function App() {
 
       {/* Toast Notification */}
       {showToast && (
-        <div className="toast-notification">
+        <div className="toast">
           {toastMessage}
         </div>
       )}
