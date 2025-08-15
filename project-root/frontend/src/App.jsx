@@ -140,9 +140,16 @@ function App() {
 
   const handleStartTask = () => {
     if (activeTask && activeTask.status === 'ready') {
+      // Pass both fresh and bulk PDF data to the viewer component
       setViewingPdf({
-        name: activeTask.fresh_files[0],
-        url: `${API_URL}/pdfs/${activeTask.task_name}/${activeTask.fresh_files[0]}`
+        freshPdf: {
+          name: activeTask.fresh_files[0],
+          url: `${API_URL}/pdfs/${activeTask.task_name}/${activeTask.fresh_files[0]}`
+        },
+        bulkPdfs: activeTask.bulk_files.map(file => ({
+          name: file,
+          url: `${API_URL}/pdfs/${activeTask.task_name}/bulk/${file}`
+        }))
       });
     }
   };
@@ -159,7 +166,7 @@ function App() {
   };
 
   if (viewingPdf) {
-    return <PdfViewer freshPdf={viewingPdf} onBack={() => setViewingPdf(null)} />;
+    return <PdfViewer freshPdf={viewingPdf.freshPdf} bulkPdfs={viewingPdf.bulkPdfs} onBack={() => setViewingPdf(null)} />;
   }
 
   return (
@@ -289,9 +296,16 @@ function App() {
                 <p className="no-tasks-message">No tasks created yet. Upload documents to get started!</p>
               )}
             </div>
-            <button className="scroll-btn right" onClick={() => scrollTasks('right')}>
-              <FaChevronRight />
-            </button>
+            {tasks.length > 3 && (
+              <>
+                <button className="absolute left-0 top-1/2 -translate-y-1/2 p-3 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-100 transition duration-300" onClick={() => scrollTasks('left')}>
+                  <FaChevronLeft className="text-gray-600" />
+                </button>
+                <button className="absolute right-0 top-1/2 -translate-y-1/2 p-3 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-100 transition duration-300" onClick={() => scrollTasks('right')}>
+                  <FaChevronRight className="text-gray-600" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -316,7 +330,11 @@ function App() {
       )}
 
       {/* Toast Notification */}
-      <Toast message={toastMessage} show={showToast} onClose={() => setShowToast(false)} />
+      {showToast && (
+        <div className="toast-notification">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

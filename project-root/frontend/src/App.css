@@ -512,7 +512,11 @@ body {
 
 .bulk-pdf-list {
   flex: 1;
+  background-color: #dcdcdc;
   overflow-y: auto;
+  min-height: 10px;
+  max-height: 400px;
+  border-radius: 20px;
 }
 
 .bulk-pdf-item {
@@ -522,6 +526,8 @@ body {
   padding: 6px;
   cursor: pointer;
   border-radius: 6px;
+  background-color: #ececec;
+  margin: 10px;
 }
 
 .bulk-pdf-item:hover {
@@ -529,6 +535,9 @@ body {
 }
 
 .center-viewer {
+  margin: 20px;
+  padding: 50px;
+  border-radius: 20px;
   width: 100vh;
   padding: 10px;
   background: #f9f9f9;
