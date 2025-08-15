@@ -8,9 +8,9 @@ from chromadb import PersistentClient  # instead of chromadb.Client
 import time
 from typing import List, Dict, Any
 
-# Initialize the embedding model to load it once
+# Initialize the embedding model to load it once (force CPU usage)
 try:
-    EMBEDDING_MODEL = SentenceTransformer('all-MiniLM-L6-v2')
+    EMBEDDING_MODEL = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
 except Exception as e:
     print(f"Error loading SentenceTransformer model: {e}")
     EMBEDDING_MODEL = None
