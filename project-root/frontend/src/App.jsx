@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { FaFilePdf, FaTimes, FaUpload, FaPlay, FaChevronRight, FaChevronLeft, FaPaperclip } from "react-icons/fa";
+import { FaFilePdf, FaTimes, FaUpload, FaPlay, FaChevronRight, FaChevronLeft, FaFileAlt, FaSpinner, FaPaperclip } from "react-icons/fa";
 
 const API_URL = 'http://localhost:8000';
 
@@ -20,16 +20,23 @@ function App() {
   const freshFileInputRef = useRef(null);
   const taskListRef = useRef(null);
 
-  useEffect(() => { fetchTasks(); }, []);
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   const fetchTasks = async () => {
     try {
       const response = await fetch(`${API_URL}/tasks`);
       if (response.ok) {
         const data = await response.json();
-        setTasks(data.sort((a, b) => b.task_name.localeCompare(a.task_name)));
+        const sortedTasks = data.sort((a, b) => b.task_name.localeCompare(a.task_name));
+        setTasks(sortedTasks);
+      } else {
+        console.error('Failed to fetch tasks.');
       }
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error('An error occurred while fetching tasks:', error);
+    }
   };
 
   const handleUpload = () => {
@@ -47,7 +54,9 @@ function App() {
     }
 
     const formData = new FormData();
-    bulkFiles.forEach(file => formData.append('bulk_files', file));
+    for (const file of bulkFiles) {
+      formData.append('bulk_files', file);
+    }
     formData.append('fresh_file', freshFile);
     formData.append('task_name', tempTaskName);
 
@@ -56,44 +65,71 @@ function App() {
       setUploadStatus('Uploading...');
       setShowTaskNameModal(false);
 
-      const response = await fetch(`${API_URL}/upload_task`, { method: 'POST', body: formData });
-      const data = await response.json();
+      const response = await fetch(`${API_URL}/upload_task`, {
+        method: 'POST',
+        body: formData,
+      });
 
+      const data = await response.json();
       if (response.ok) {
         setUploadStatus(`Success! New task created: ${data.task_name}`);
         setBulkFiles([]);
         setFreshFile(null);
         setTempTaskName('');
         fetchTasks();
+
+        // Show toast notification
         setToastMessage(`Task "${data.task_name}" added successfully!`);
         setShowToast(true);
-        setTimeout(() => setShowToast(false), 3500);
-      } else setUploadStatus(`Error: ${data.detail}`);
-    } catch (error) { setUploadStatus(`An error occurred: ${error.message}`); }
-    finally { setIsUploading(false); }
+        setTimeout(() => setShowToast(false), 3500); // hide after 3.5s
+      } else {
+        setUploadStatus(`Error: ${data.detail}`);
+      }
+    } catch (error) {
+      setUploadStatus(`An error occurred: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleBulkFileChange = (e) => {
-    const newFiles = Array.from(e.target.files).filter(f => f.type === 'application/pdf');
-    setBulkFiles(prev => [...prev, ...newFiles]);
+    const newFiles = Array.from(e.target.files).filter(file => file.type === 'application/pdf');
+    setBulkFiles(prevFiles => [...prevFiles, ...newFiles]);
     e.target.value = null;
   };
 
   const handleFreshFileChange = (e) => {
     const file = e.target.files[0];
-    if (file && file.type === 'application/pdf') setFreshFile(file);
-    else if (file) alert('Please upload a valid PDF file.');
+    if (file && file.type === 'application/pdf') {
+      setFreshFile(file);
+    } else if (file) {
+      alert('Please upload a valid PDF file.');
+    }
     e.target.value = null;
   };
 
-  const handleRemoveBulkFile = (name) => setBulkFiles(prev => prev.filter(f => f.name !== name));
-  const handleRemoveFreshFile = () => setFreshFile(null);
-  const handleStartTask = () => { if (activeTask) console.log(`Starting task: ${activeTask.task_name}`); };
+  const handleRemoveBulkFile = (fileName) => {
+    setBulkFiles(prevFiles => prevFiles.filter(file => file.name !== fileName));
+  };
 
-  const scrollTasks = (dir) => {
+  const handleRemoveFreshFile = () => {
+    setFreshFile(null);
+  };
+
+  const handleStartTask = () => {
+    if (activeTask) {
+      console.log(`Starting task: ${activeTask.task_name}`);
+    }
+  };
+
+  const scrollTasks = (direction) => {
     if (taskListRef.current) {
       const scrollAmount = 350;
-      taskListRef.current.scrollBy({ left: dir === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+      if (direction === 'left') {
+        taskListRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        taskListRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
     }
   };
 
@@ -107,16 +143,21 @@ function App() {
           <div className="upload-box-container">
             <div className="upload-box bulk-upload-box">
               <h3 className="box-title">Bulk PDFs</h3>
+              <p className="box-description">Upload multiple PDF documents for comprehensive analysis</p>
               <div className="drop-zone" onClick={() => bulkFileInputRef.current.click()}>
                 <FaUpload size={30} className="upload-icon" />
                 <p>Drag and drop files here<br />or <span className="browse-link">click to browse</span></p>
-                <input type="file" multiple ref={bulkFileInputRef} onChange={handleBulkFileChange} style={{ display: 'none' }} accept=".pdf" />
+                <input type="file" multiple ref={bulkFileInputRef} onChange={handleBulkFileChange} style={{display: 'none'}} accept=".pdf" />
               </div>
               <div className="file-preview-list">
                 {bulkFiles.map(file => (
                   <div key={file.name} className="file-chip">
-                    <FaFilePdf size={14} /><span>{file.name}</span>
-                    <FaTimes size={12} className="remove-icon" onClick={(e) => { e.stopPropagation(); handleRemoveBulkFile(file.name); }} />
+                    <FaFilePdf size={14} />
+                    <span>{file.name}</span>
+                    <FaTimes size={12} className="remove-icon" onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveBulkFile(file.name);
+                    }} />
                   </div>
                 ))}
               </div>
@@ -124,16 +165,21 @@ function App() {
 
             <div className="upload-box fresh-upload-box">
               <h3 className="box-title">Fresh PDF</h3>
+              <p className="box-description">Upload a single fresh PDF document to compare against bulk files</p>
               <div className="drop-zone" onClick={() => freshFileInputRef.current.click()}>
                 <FaUpload size={30} className="upload-icon" />
                 <p>Drag and drop file here<br />or <span className="browse-link">click to browse</span></p>
-                <input type="file" ref={freshFileInputRef} onChange={handleFreshFileChange} style={{ display: 'none' }} accept=".pdf" />
+                <input type="file" ref={freshFileInputRef} onChange={handleFreshFileChange} style={{display: 'none'}} accept=".pdf" />
               </div>
               {freshFile && (
                 <div className="file-preview-list">
                   <div className="file-chip">
-                    <FaFilePdf size={14} /><span>{freshFile.name}</span>
-                    <FaTimes size={12} className="remove-icon" onClick={(e) => { e.stopPropagation(); handleRemoveFreshFile(); }} />
+                    <FaFilePdf size={14} />
+                    <span>{freshFile.name}</span>
+                    <FaTimes size={12} className="remove-icon" onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveFreshFile();
+                    }} />
                   </div>
                 </div>
               )}
@@ -151,8 +197,11 @@ function App() {
         <div className="tasks-section">
           <div className="tasks-header">
             <div className="tasks-title-wrapper">
-              <h2 className="tasks-title">Tasks</h2>
-              <p className="tasks-description">Manage your document analysis workflows</p>
+              <FaFileAlt size={28} className="tasks-icon" />
+              <div>
+                <h2 className="tasks-title">Tasks</h2>
+                <p className="tasks-description">Manage your document analysis workflows</p>
+              </div>
             </div>
             <div className="tasks-status-wrapper">
               <p className="tasks-count">{tasks.length} tasks</p>
@@ -161,39 +210,83 @@ function App() {
               </button>
             </div>
           </div>
-
+          
           <div className="task-list-wrapper">
-            <button className="scroll-btn left" onClick={() => scrollTasks('left')}><FaChevronLeft /></button>
+            <button className="scroll-btn left" onClick={() => scrollTasks('left')}>
+              <FaChevronLeft />
+            </button>
             <div className="task-list" ref={taskListRef}>
-              {tasks.length > 0 ? tasks.map((task, i) => (
-                <div key={i} className={`task-card ${activeTask?.task_name === task.task_name ? 'active' : ''}`} onClick={() => setActiveTask(task)}>
-                  <div className="card-top">
-                    <h3 className="task-card-title">{task.task_name.replace('_', ' ')}</h3>
-                    <span className="status-badge ready">Ready</span>
-                  </div>
-                  <div className="card-file-list">
-                    <div className="file-category">
-                      <p className="file-category-title">Bulk PDFs ({task.bulk_files.length})</p>
-                      {task.bulk_files.map(file => (
-                        <div key={file} className="file-info-chip">
-                          <FaFilePdf size={14} /><span>{file}</span>
-                        </div>
-                      ))}
+              {tasks.length > 0 ? (
+                tasks.map((task, index) => (
+                  <div
+                    key={index}
+                    className={`task-card ${activeTask?.task_name === task.task_name ? 'active' : ''}`}
+                    onClick={() => setActiveTask(task)}
+                  >
+                    <div className="card-top">
+                      <h3 className="task-card-title">{task.task_name.replace('_', ' ')}</h3>
+                      <span className="status-badge ready">Ready</span>
                     </div>
-                    <div className="file-category">
-                      <p className="file-category-title">Fresh PDF (1)</p>
-                      <div className="file-info-chip">
-                        <FaFilePdf size={14} /><span>{task.fresh_files[0]}</span>
+                    <div className="card-meta">
+                      <p>Aug 14, 2025, 08:34 AM</p>
+                    </div>
+                    <div className="card-file-list">
+                      <div className="file-category">
+                        <p className="file-category-title">Bulk PDFs ({task.bulk_files.length})</p>
+                        {task.bulk_files.map(file => (
+                          <div key={file} className="file-info-chip">
+                            <FaFilePdf size={14} />
+                            <span>{file}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="file-category">
+                        <p className="file-category-title">Fresh PDF (1)</p>
+                        <div className="file-info-chip">
+                          <FaFilePdf size={14} />
+                          <span>{task.fresh_files[0]}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )) : <p className="no-tasks-message">No tasks created yet. Upload documents to get started!</p>}
+                ))
+              ) : (
+                <p className="no-tasks-message">No tasks created yet. Upload documents to get started!</p>
+              )}
             </div>
-            <button className="scroll-btn right" onClick={() => scrollTasks('right')}><FaChevronRight /></button>
+            <button className="scroll-btn right" onClick={() => scrollTasks('right')}>
+              <FaChevronRight />
+            </button>
           </div>
         </div>
       </div>
+
+      {showTaskNameModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3>Name Your Task</h3>
+            <p>Please provide a name for this document analysis task.</p>
+            <input 
+              type="text" 
+              value={tempTaskName} 
+              onChange={(e) => setTempTaskName(e.target.value)} 
+              placeholder="e.g., Contract Analysis"
+              className="modal-input"
+            />
+            <div className="modal-actions">
+              <button className="btn modal-cancel-btn" onClick={() => setShowTaskNameModal(false)}>Cancel</button>
+              <button className="btn modal-confirm-btn" onClick={handleConfirmUpload}>Confirm</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div className="toast">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

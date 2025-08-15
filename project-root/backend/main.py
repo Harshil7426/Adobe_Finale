@@ -17,7 +17,7 @@ TASK_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI()
 
 origins = [
-    "http://localhost:5173",
+    "http://localhost:5176",
     "http://localhost:3000",
     "http://localhost:5179"
 ]
