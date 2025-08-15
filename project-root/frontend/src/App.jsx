@@ -140,7 +140,6 @@ function App() {
 
   const handleStartTask = () => {
     if (activeTask && activeTask.status === 'ready') {
-      // Pass both fresh and bulk PDF data to the viewer component
       setViewingPdf({
         freshPdf: {
           name: activeTask.fresh_files[0],
@@ -246,7 +245,7 @@ function App() {
                 onClick={handleStartTask} 
                 disabled={!activeTask || activeTask.status !== 'ready'}
               >
-                <FaPlay /> Start Analysis
+                <FaPlay /> View Task
               </button>
             </div>
           </div>

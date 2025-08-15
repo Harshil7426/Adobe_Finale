@@ -1,12 +1,14 @@
 import os
 import shutil
+import uvicorn
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, HTTPException, Form, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from typing import List
-import uvicorn
+from pydantic import BaseModel
+import model 
 
 # Set the path to the 'task' directory relative to the project root.
 TASK_DIR = Path(__file__).parent.parent / "task"
@@ -29,8 +31,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class RecommendationRequest(BaseModel):
+    task_name: str
+    query_text: str
+
 @app.post("/upload_task")
 async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] = File(...), fresh_file: UploadFile = File(...)):
+    """
+    Handles the upload of bulk and fresh PDF files and saves them
+    to a directory named by the user.
+    """
     try:
         sanitized_task_name = Path(task_name).name
         if not sanitized_task_name:
@@ -41,27 +51,55 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         if task_path.exists() and task_path.is_dir():
             raise HTTPException(status_code=400, detail=f"Task '{sanitized_task_name}' already exists. Please choose a different name.")
         
+        # Create the task directory and its subdirectories.
         bulk_dir = task_path / "bulk"
         fresh_dir = task_path / "fresh"
         bulk_dir.mkdir(parents=True, exist_ok=True)
         fresh_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create a temporary directory to save bulk files for embedding
+        temp_bulk_dir = task_path / "temp_bulk"
+        temp_bulk_dir.mkdir(parents=True, exist_ok=True)
         
         fresh_file_path = fresh_dir / fresh_file.filename
         with open(fresh_file_path, "wb") as buffer:
             shutil.copyfileobj(fresh_file.file, buffer)
             
         for file in bulk_files:
-            bulk_file_path = bulk_dir / file.filename
+            bulk_file_path = temp_bulk_dir / file.filename
             with open(bulk_file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
         
-        # --- NEW LOGIC: Skip the model part and mark the task as ready immediately ---
+        # Immediately mark the task as processing
+        (task_path / 'status.txt').write_text('processing')
+        
+        # --- Embedding Process ---
+        model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
+        
+        # Move the files to the final bulk directory after embedding
+        for file in os.listdir(temp_bulk_dir):
+            shutil.move(temp_bulk_dir / file, bulk_dir / file)
+        shutil.rmtree(temp_bulk_dir)
+        # --- End of Embedding Process ---
+        
         (task_path / 'status.txt').write_text('ready')
-        # --- END OF NEW LOGIC ---
                 
         return {"status": "success", "task_name": sanitized_task_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
+@app.post("/get_recommendations")
+async def get_recommendations_endpoint(request_body: RecommendationRequest):
+    """
+    Takes selected text and a task name, runs the semantic search, and returns
+    relevant sections.
+    """
+    try:
+        task_path = TASK_DIR / request_body.task_name
+        recommendations = model.get_recommendations(request_body.task_name, request_body.query_text, task_path)
+        return JSONResponse(content=recommendations)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Recommendation retrieval failed: {str(e)}")
 
 @app.get("/tasks")
 async def get_tasks():
@@ -89,12 +127,17 @@ async def get_tasks():
 
 @app.get("/pdfs/{task_name}/{filename}")
 async def get_pdf(task_name: str, filename: str):
-    pdf_path = TASK_DIR / task_name / "fresh" / filename
-    if not pdf_path.exists() or not pdf_path.is_file():
-        raise HTTPException(status_code=404, detail="PDF not found.")
-    return FileResponse(pdf_path, media_type="application/pdf")
+    pdf_path_fresh = TASK_DIR / task_name / "fresh" / filename
+    pdf_path_bulk = TASK_DIR / task_name / "bulk" / filename
+    
+    if pdf_path_fresh.exists() and pdf_path_fresh.is_file():
+        return FileResponse(pdf_path_fresh, media_type="application/pdf")
+    
+    if pdf_path_bulk.exists() and pdf_path_bulk.is_file():
+        return FileResponse(pdf_path_bulk, media_type="application/pdf")
+        
+    raise HTTPException(status_code=404, detail="PDF not found.")
 
-# Serve the React frontend's static files
 app.mount("/", StaticFiles(directory=FRONTEND_BUILD_DIR, html=True), name="static")
 
 @app.get("/{full_path:path}")
