@@ -1,8 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { FaFilePdf, FaTimes, FaUpload, FaPlay, FaChevronRight, FaChevronLeft, FaFileAlt, FaSpinner, FaPaperclip } from "react-icons/fa";
+import PdfViewer from './PdfViewer';
 
 const API_URL = 'http://localhost:8000';
+
+const Toast = ({ message, show, onClose }) => {
+  useEffect(() => {
+    if (show) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [show, onClose]);
+
+  if (!show) return null;
+
+  return (
+    <div className="toast-notification">
+      <p>{message}</p>
+    </div>
+  );
+};
 
 function App() {
   const [bulkFiles, setBulkFiles] = useState([]);
@@ -15,14 +35,11 @@ function App() {
   const [tempTaskName, setTempTaskName] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState(null);
 
   const bulkFileInputRef = useRef(null);
   const freshFileInputRef = useRef(null);
   const taskListRef = useRef(null);
-
-  useEffect(() => {
-    fetchTasks();
-  }, []);
 
   const fetchTasks = async () => {
     try {
@@ -38,6 +55,12 @@ function App() {
       console.error('An error occurred while fetching tasks:', error);
     }
   };
+
+  useEffect(() => {
+    fetchTasks();
+    const interval = setInterval(fetchTasks, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleUpload = () => {
     if (bulkFiles.length === 0 || !freshFile) {
@@ -78,10 +101,9 @@ function App() {
         setTempTaskName('');
         fetchTasks();
 
-        // Show toast notification
-        setToastMessage(`Task "${data.task_name}" added successfully!`);
+        setToastMessage(`Task "${data.task_name}" started processing.`);
         setShowToast(true);
-        setTimeout(() => setShowToast(false), 3500); // hide after 3.5s
+        setTimeout(() => setShowToast(false), 3500);
       } else {
         setUploadStatus(`Error: ${data.detail}`);
       }
@@ -117,8 +139,11 @@ function App() {
   };
 
   const handleStartTask = () => {
-    if (activeTask) {
-      console.log(`Starting task: ${activeTask.task_name}`);
+    if (activeTask && activeTask.status === 'ready') {
+      setViewingPdf({
+        name: activeTask.fresh_files[0],
+        url: `${API_URL}/pdfs/${activeTask.task_name}/${activeTask.fresh_files[0]}`
+      });
     }
   };
 
@@ -132,6 +157,10 @@ function App() {
       }
     }
   };
+
+  if (viewingPdf) {
+    return <PdfViewer freshPdf={viewingPdf} onBack={() => setViewingPdf(null)} />;
+  }
 
   return (
     <div className="app-container">
@@ -205,7 +234,11 @@ function App() {
             </div>
             <div className="tasks-status-wrapper">
               <p className="tasks-count">{tasks.length} tasks</p>
-              <button className="btn start-analysis-btn" onClick={handleStartTask} disabled={!activeTask}>
+              <button 
+                className="btn start-analysis-btn" 
+                onClick={handleStartTask} 
+                disabled={!activeTask || activeTask.status !== 'ready'}
+              >
                 <FaPlay /> Start Analysis
               </button>
             </div>
@@ -220,12 +253,14 @@ function App() {
                 tasks.map((task, index) => (
                   <div
                     key={index}
-                    className={`task-card ${activeTask?.task_name === task.task_name ? 'active' : ''}`}
+                    className={`task-card ${activeTask?.task_name === task.task_name ? 'active' : ''} ${task.status === 'processing' ? 'processing' : 'ready'}`}
                     onClick={() => setActiveTask(task)}
                   >
                     <div className="card-top">
                       <h3 className="task-card-title">{task.task_name.replace('_', ' ')}</h3>
-                      <span className="status-badge ready">Ready</span>
+                      <span className={`status-badge ${task.status === 'processing' ? 'processing' : 'ready'}`}>
+                        {task.status === 'processing' ? <FaSpinner className="spinner-small" /> : 'Ready'}
+                      </span>
                     </div>
                     <div className="card-meta">
                       <p>Aug 14, 2025, 08:34 AM</p>
@@ -260,7 +295,6 @@ function App() {
           </div>
         </div>
       </div>
-
       {showTaskNameModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -282,11 +316,7 @@ function App() {
       )}
 
       {/* Toast Notification */}
-      {showToast && (
-        <div className="toast">
-          {toastMessage}
-        </div>
-      )}
+      <Toast message={toastMessage} show={showToast} onClose={() => setShowToast(false)} />
     </div>
   );
 }

@@ -481,3 +481,81 @@ body {
 @keyframes scaleUp { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes slideIn { to { transform: translateX(0); opacity: 1; } }
 @keyframes fadeOut { to { opacity: 0; transform: translateX(-100%); } }
+
+.pdf-page-container {
+  display: flex;
+  height: 100vh;
+  background: #f4f4f4;
+  width: 1500px;
+}
+
+.sidebar {
+  width: 500px;
+  background: #fff;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.back-btn {
+  background: #e4e4e4;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.bulk-pdf-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.bulk-pdf-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.bulk-pdf-item:hover {
+  background: #f0f0f0;
+}
+
+.center-viewer {
+  width: 100vh;
+  padding: 10px;
+  background: #f9f9f9;
+}
+
+.viewer-box {
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.right-panel {
+  width: 20%;
+  background: #fff;
+  border-left: 1px solid #ddd;
+  padding: 10px;
+}
+
+.generate-btn {
+  background: #4caf50;
+  color: #fff;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.generate-btn:hover {
+  background: #45a049;
+}
