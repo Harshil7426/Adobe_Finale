@@ -237,15 +237,6 @@ body {
   gap: 15px;
 }
 
-.tasks-icon {
-  color: #4299e1;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
 
 .tasks-title-wrapper h2 {
   margin: 0;
@@ -289,7 +280,7 @@ body {
   scroll-behavior: smooth;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  background-color: #d0daeb;
+  background-color: linear-gradient(90deg, #020024 0%, #090979 35%, #00d4ff 100%);;
   border-radius: 20px;
 }
 
@@ -325,7 +316,7 @@ body {
 
 .task-card {
   flex: 0 0 340px;
-  background: rgba(28, 40, 44, 0.746);
+  background: #faf6e9;
   border: 2px solid rgba(219, 219, 219, 0.443);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   backdrop-filter: blur(14px) saturate(160%);
@@ -357,7 +348,7 @@ body {
   align-items: center;
 }
 
-.task-card-title { font-weight: 700;font-size: 1.1em; color: #2f405c;background-color: #f6f5ed;padding: 20px;border-radius: 30px;margin-top: -5px; }
+.task-card-title { font-weight: 700;font-size: 1.1em; color: #2f405c;background-color: #ece8d9;padding: 20px;border-radius: 30px;margin-top: -5px; }
 
 .status-badge {
   padding: 3px 10px;
@@ -386,7 +377,7 @@ body {
 
 }
 .card-back{
-  background-color: #151b25;
+  background-color: #2f2e2e;
   padding: 10px;
   border-radius: 20px;
 }
@@ -401,6 +392,9 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
   margin-top: -25px;
+  background-color: #494949;
+  padding: 5px;
+  border-radius: 20px;
 }
 .bulk-pdf-scroll {
   max-height: 60px;            /* ✅ scroll limit for bulk pdfs */
@@ -409,7 +403,7 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #ccc transparent;
   border-radius: 20px;
-  background-color: #222a39;
+  background-color: #535151;
   padding: 5px;
 }
 .bulk-pdf-scroll::-webkit-scrollbar { width: 6px; }
@@ -423,7 +417,7 @@ body {
 .card-file-list::-webkit-scrollbar-track { background: transparent; }
 .card-file-list::-webkit-scrollbar-thumb { background-color: #d2d2d2; border-radius: 4px; border: 2px solid transparent; }
 
-.file-category-title {display: inline-block; font-weight: 700; color: #40547b; font-size: 0.9em; margin-bottom: 5px;background-color: #c7d6e0;padding: 8px;border-radius: 14px;}
+.file-category-title {display: inline-block; font-weight: 700; color: #40547b; font-size: 0.9em; ;background-color: #ece8d9;padding: 8px;border-radius: 14px;}
 
 
 .file-info-chip {
