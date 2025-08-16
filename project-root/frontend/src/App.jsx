@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { FaFilePdf, FaTimes, FaUpload, FaPlay, FaChevronRight, FaChevronLeft, FaFileAlt, FaSpinner, FaPaperclip } from "react-icons/fa";
+import { FaFilePdf, FaTimes, FaUpload, FaPlay, FaFileAlt, FaSpinner, FaPaperclip } from "react-icons/fa";
 import PdfViewer from './PdfViewer';
 
 const API_URL = 'http://localhost:8000';
@@ -61,6 +61,35 @@ function App() {
     const interval = setInterval(fetchTasks, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // ===== 3D Carousel Effect =====
+  useEffect(() => {
+    const container = taskListRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const cards = container.querySelectorAll('.task-card');
+      const containerCenter = container.offsetWidth / 2;
+
+      cards.forEach((card) => {
+        const cardRect = card.getBoundingClientRect();
+        const cardCenter = cardRect.left + cardRect.width / 2;
+        const offset = cardCenter - containerCenter;
+
+        const rotateY = offset / 20;
+        const scale = Math.max(0.85, 1 - Math.abs(offset) / 1000);
+
+        card.style.transform = `perspective(1000px) rotateY(${rotateY}deg) scale(${scale})`;
+        card.style.zIndex = `${1000 - Math.abs(offset)}`;
+        card.style.opacity = scale;
+      });
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [tasks]);
 
   const handleUpload = () => {
     if (bulkFiles.length === 0 || !freshFile) {
@@ -153,15 +182,11 @@ function App() {
     }
   };
 
-  const scrollTasks = (direction) => {
-    if (taskListRef.current) {
-      const scrollAmount = 350;
-      if (direction === 'left') {
-        taskListRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-      } else {
-        taskListRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-      }
-    }
+  const formatTimestamp = (timestamp) => {
+    if (!timestamp) return 'No date available';
+    const date = new Date(timestamp);
+    const options = { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return date.toLocaleDateString('en-US', options);
   };
 
   if (viewingPdf) {
@@ -174,15 +199,17 @@ function App() {
         <h1 className="main-title">Document Intelligence Hub</h1>
         <p className="subtitle">Transform your document analysis workflow with intelligent PDF processing and comparison</p>
 
+        {/* Upload Section */}
         <div className="upload-section">
           <div className="upload-box-container">
+            {/* Bulk Upload */}
             <div className="upload-box bulk-upload-box">
               <h3 className="box-title">Bulk PDFs</h3>
               <p className="box-description">Upload multiple PDF documents for comprehensive analysis</p>
               <div className="drop-zone" onClick={() => bulkFileInputRef.current.click()}>
                 <FaUpload size={30} className="upload-icon" />
                 <p>Drag and drop files here<br />or <span className="browse-link">click to browse</span></p>
-                <input type="file" multiple ref={bulkFileInputRef} onChange={handleBulkFileChange} style={{display: 'none'}} accept=".pdf" />
+                <input type="file" multiple ref={bulkFileInputRef} onChange={handleBulkFileChange} style={{ display: 'none' }} accept=".pdf" />
               </div>
               <div className="file-preview-list">
                 {bulkFiles.map(file => (
@@ -198,13 +225,14 @@ function App() {
               </div>
             </div>
 
+            {/* Fresh Upload */}
             <div className="upload-box fresh-upload-box">
               <h3 className="box-title">Fresh PDF</h3>
               <p className="box-description">Upload a single fresh PDF document to compare against bulk files</p>
               <div className="drop-zone" onClick={() => freshFileInputRef.current.click()}>
                 <FaUpload size={30} className="upload-icon" />
                 <p>Drag and drop file here<br />or <span className="browse-link">click to browse</span></p>
-                <input type="file" ref={freshFileInputRef} onChange={handleFreshFileChange} style={{display: 'none'}} accept=".pdf" />
+                <input type="file" ref={freshFileInputRef} onChange={handleFreshFileChange} style={{ display: 'none' }} accept=".pdf" />
               </div>
               {freshFile && (
                 <div className="file-preview-list">
@@ -226,13 +254,12 @@ function App() {
               {isUploading ? <FaSpinner className="spinner" /> : <FaPaperclip />} Upload Documents
             </button>
           </div>
-          <p className="status-message">{uploadStatus}</p>
         </div>
 
+        {/* Tasks Section */}
         <div className="tasks-section">
           <div className="tasks-header">
             <div className="tasks-title-wrapper">
-              <FaFileAlt size={28} className="tasks-icon" />
               <div>
                 <h2 className="tasks-title">Tasks</h2>
                 <p className="tasks-description">Manage your document analysis workflows</p>
@@ -240,84 +267,82 @@ function App() {
             </div>
             <div className="tasks-status-wrapper">
               <p className="tasks-count">{tasks.length} tasks</p>
-              <button 
-                className="btn start-analysis-btn" 
-                onClick={handleStartTask} 
+              <button
+                className="btn start-analysis-btn"
+                onClick={handleStartTask}
                 disabled={!activeTask || activeTask.status !== 'ready'}
               >
                 <FaPlay /> Start Analysis
               </button>
             </div>
           </div>
-          
+
           <div className="task-list-wrapper">
-            <button className="scroll-btn left" onClick={() => scrollTasks('left')}>
-              <FaChevronLeft />
-            </button>
             <div className="task-list" ref={taskListRef}>
               {tasks.length > 0 ? (
                 tasks.map((task, index) => (
                   <div
                     key={index}
-                    className={`task-card ${activeTask?.task_name === task.task_name ? 'active' : ''} ${task.status === 'processing' ? 'processing' : 'ready'}`}
+                    className={`task-card ${activeTask?.task_name === task.task_name ? 'active' : ''} ${task.status}`}
                     onClick={() => setActiveTask(task)}
                   >
                     <div className="card-top">
                       <h3 className="task-card-title">{task.task_name.replace('_', ' ')}</h3>
-                      <span className={`status-badge ${task.status === 'processing' ? 'processing' : 'ready'}`}>
+                      <span className={`status-badge ${task.status}`}>
                         {task.status === 'processing' ? <FaSpinner className="spinner-small" /> : 'Ready'}
                       </span>
                     </div>
                     <div className="card-meta">
-                      <p>Aug 14, 2025, 08:34 AM</p>
+                      <p>{formatTimestamp(task.created_at)}</p>
                     </div>
                     <div className="card-file-list">
+                      <div class="card-back">
                       <div className="file-category">
-                        <p className="file-category-title">Fresh PDF (1)</p>
+                        <p className="file-category-title">Fresh PDF </p>
                         <div className="file-info-chip">
                           <FaFilePdf size={14} />
                           <span>{task.fresh_files[0]}</span>
                         </div>
+                        </div>
                       </div>
+                      <div class="card-back">
                       <div className="file-category">
-                        <p className="file-category-title">Bulk PDFs ({task.bulk_files.length})</p>
-                        {task.bulk_files.map(file => (
-                          <div key={file} className="file-info-chip">
-                            <FaFilePdf size={14} />
-                            <span>{file}</span>
-                          </div>
-                        ))}
+                        <p className="file-category-title">
+                          Bulk PDFs ({task.bulk_files.length})
+                        </p>
+                        <div className="bulk-pdf-scroll">
+                          {task.bulk_files.map(file => (
+                            <div key={file} className="file-info-chip">
+                              <FaFilePdf size={14} />
+                              <span>{file}</span>
+                            </div>
+                        
+                          ))}
+                        </div>
                       </div>
-                      
+                      </div>
                     </div>
+
                   </div>
                 ))
               ) : (
                 <p className="no-tasks-message">No tasks created yet. Upload documents to get started!</p>
               )}
             </div>
-            {tasks.length > 3 && (
-              <>
-                <button className="absolute left-0 top-1/2 -translate-y-1/2 p-3 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-100 transition duration-300" onClick={() => scrollTasks('left')}>
-                  <FaChevronLeft className="text-gray-600" />
-                </button>
-                <button className="absolute right-0 top-1/2 -translate-y-1/2 p-3 bg-white rounded-full shadow-lg border border-gray-200 hover:bg-gray-100 transition duration-300" onClick={() => scrollTasks('right')}>
-                  <FaChevronRight className="text-gray-600" />
-                </button>
-              </>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Task Name Modal */}
       {showTaskNameModal && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h3>Name Your Task</h3>
             <p>Please provide a name for this document analysis task.</p>
-            <input 
-              type="text" 
-              value={tempTaskName} 
-              onChange={(e) => setTempTaskName(e.target.value)} 
+            <input
+              type="text"
+              value={tempTaskName}
+              onChange={(e) => setTempTaskName(e.target.value)}
               placeholder="e.g., Contract Analysis"
               className="modal-input"
             />

@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 from pydantic import BaseModel
-import model 
+import model
+from datetime import datetime
 
 # Set the path to the 'task' directory relative to the project root.
 TASK_DIR = Path(__file__).parent.parent / "task"
@@ -73,6 +74,9 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         # Immediately mark the task as processing
         (task_path / 'status.txt').write_text('processing')
         
+        # Save the creation timestamp
+        (task_path / 'created_at.txt').write_text(datetime.now().isoformat())
+        
         # --- Embedding Process ---
         model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
         
@@ -117,11 +121,15 @@ async def get_tasks():
             status_file = task_path / 'status.txt'
             status = status_file.read_text().strip() if status_file.exists() else 'processing'
             
+            created_at_file = task_path / 'created_at.txt'
+            created_at = created_at_file.read_text().strip() if created_at_file.exists() else None
+            
             tasks.append({
                 "task_name": task_name,
                 "bulk_files": bulk_files,
                 "fresh_files": fresh_files,
-                "status": status
+                "status": status,
+                "created_at": created_at  # Add the timestamp to the task data
             })
     return tasks
 
