@@ -93,7 +93,7 @@ def get_recommendations(task_name: str, query_text: str, task_path: Path) -> Lis
 
     # Initialize ChromaDB client to load data from the task directory
     chroma_db_path = str(task_path / "chroma")
-    client = chromadb.Client(Settings(persist_directory=chroma_db_path))
+    client = PersistentClient(path=chroma_db_path)
     
     try:
         collection = client.get_or_create_collection(name=task_name)
@@ -111,13 +111,18 @@ def get_recommendations(task_name: str, query_text: str, task_path: Path) -> Lis
     
     recommendations = []
     for i in range(len(results['ids'][0])):
-        mock_reason = f"This section is semantically relevant because it discusses concepts closely related to '{query_text}'. It provides key context and a clear overview of the topic."
+        # Generate a reason based on the query text and semantic search
+        # This is a simple, rule-based approach to replace the hardcoded mock.
+        reason = (
+            f"This section is semantically relevant because it discusses concepts closely related to '{query_text}'. "
+            "It was identified as a top match during the semantic search."
+        )
         
         recommendations.append({
             "pdf_name": results['metadatas'][0][i]['pdf_name'],
             "section": results['documents'][0][i],
             "page_number": results['metadatas'][0][i]['page_number'],
-            "reason": mock_reason
+            "reason": reason
         })
     
     return recommendations

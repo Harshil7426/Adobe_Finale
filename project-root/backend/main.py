@@ -8,7 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from typing import List
 from pydantic import BaseModel
-import model 
+from datetime import datetime
+import model
+import json
 
 # Set the path to the 'task' directory relative to the project root.
 TASK_DIR = Path(__file__).parent.parent / "task"
@@ -70,8 +72,9 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
             with open(bulk_file_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
         
-        # Immediately mark the task as processing
+        # Mark the task as processing
         (task_path / 'status.txt').write_text('processing')
+        (task_path / 'created_at.txt').write_text(datetime.now().isoformat())
         
         # --- Embedding Process ---
         model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
@@ -80,8 +83,8 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         for file in os.listdir(temp_bulk_dir):
             shutil.move(temp_bulk_dir / file, bulk_dir / file)
         shutil.rmtree(temp_bulk_dir)
-        # --- End of Embedding Process ---
         
+        # Mark the task as ready after everything is complete
         (task_path / 'status.txt').write_text('ready')
                 
         return {"status": "success", "task_name": sanitized_task_name}
@@ -97,7 +100,13 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
     try:
         task_path = TASK_DIR / request_body.task_name
         recommendations = model.get_recommendations(request_body.task_name, request_body.query_text, task_path)
-        return JSONResponse(content=recommendations)
+
+        # Save the recommendations to a JSON file in the task directory
+        recommendations_path = task_path / "recommendations.json"
+        with open(recommendations_path, "w") as f:
+            json.dump(recommendations, f, indent=4)
+
+        return JSONResponse(content={"recommendations": recommendations})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recommendation retrieval failed: {str(e)}")
 
@@ -117,11 +126,15 @@ async def get_tasks():
             status_file = task_path / 'status.txt'
             status = status_file.read_text().strip() if status_file.exists() else 'processing'
             
+            created_at_file = task_path / 'created_at.txt'
+            created_at = created_at_file.read_text().strip() if created_at_file.exists() else None
+            
             tasks.append({
                 "task_name": task_name,
                 "bulk_files": bulk_files,
                 "fresh_files": fresh_files,
-                "status": status
+                "status": status,
+                "created_at": created_at
             })
     return tasks
 

@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaChevronLeft, FaFilePdf, FaChevronDown } from "react-icons/fa";
-import "./Pdfviewer.css"
+import { FaChevronLeft, FaFilePdf } from "react-icons/fa";
+import "./Pdfviewer.css";
+
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
 
-function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
+function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const viewerRef = useRef(null);
   const apisRef = useRef(null);
   const [message, setMessage] = useState("PDF loaded. Select text to enable Generate.");
-  const [selectedText, setSelectedText] = useState(""); // internal only
-  const [generatedText, setGeneratedText] = useState("");
-  const [dropdownOpen, setDropdownOpen] = useState(false); // new
+  const [selectedText, setSelectedText] = useState("");
+  const [recommendations, setRecommendations] = useState([]);
   const pollingRef = useRef(null);
 
   useEffect(() => {
@@ -39,12 +39,12 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
           adobeViewer.getAPIs().then((apis) => {
             apisRef.current = apis;
 
-            // Polling to get selected text (hidden)
+            // Poll for selected text
             pollingRef.current = setInterval(async () => {
               try {
                 const result = await apis.getSelectedContent();
                 const text = result?.data || "";
-                setSelectedText(text); // save internally
+                setSelectedText(text);
               } catch (err) {
                 console.error("Polling error:", err);
               }
@@ -69,16 +69,36 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
     };
   }, [freshPdf]);
 
-  const handleOptionClick = (type) => {
+const handleGenerate = async () => {
     if (!selectedText) {
       setMessage("Please select some text first.");
       return;
     }
-    setGeneratedText(`${type} generated for your selection`);
-    setMessage(`Generated: ${type}`);
-    setDropdownOpen(false);
-  };
 
+    try {
+      setMessage("Generating recommendations...");
+
+      const response = await fetch("http://127.0.0.1:8000/get_recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_name: taskName,
+          query_text: selectedText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch recommendations");
+      }
+
+      const data = await response.json();
+      setRecommendations(data.recommendations);
+      setMessage("Recommendations generated.");
+    } catch (err) {
+      console.error("Error generating recommendations:", err);
+      setMessage("Error generating recommendations.");
+    }
+};
   return (
     <div className="pdf-page-container">
       {/* Left Sidebar */}
@@ -96,23 +116,15 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
           ))}
         </div>
 
-        {/* Generate Dropdown */}
-        <div className="generate-dropdown-wrapper">
+        {/* Generate Button */}
+        <div className="generate-wrapper">
           <button
             className={`generate-btn ${!selectedText ? "disabled" : ""}`}
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={handleGenerate}
             disabled={!selectedText}
           >
-            Generate <FaChevronDown size={12} />
+            Generate
           </button>
-
-          {dropdownOpen && (
-            <div className="dropdown-menu">
-              <div onClick={() => handleOptionClick("Recommendation")}>Recommendation</div>
-              <div onClick={() => handleOptionClick("Insights")}>Insights</div>
-              <div onClick={() => handleOptionClick("Podcast")}>Podcast</div>
-            </div>
-          )}
         </div>
 
         <div className="message-box">{message}</div>
@@ -125,7 +137,24 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
 
       {/* Right Panel */}
       <div className="right-panel">
-        {generatedText && <p className="generated-output">{generatedText}</p>}
+        {selectedText && (
+          <div className="selected-text-box">
+            <h4>Selected Text:</h4>
+            <p>{selectedText}</p>
+          </div>
+        )}
+        
+        {recommendations.length > 0 ? (
+          recommendations.map((rec, idx) => (
+            <div key={idx} className="recommendation-card">
+              <h4>{rec.pdf_name} (Page {rec.page_number})</h4>
+              <p><strong>Section:</strong> {rec.section}</p>
+              <p><strong>Reason:</strong> {rec.reason}</p>
+            </div>
+          ))
+        ) : (
+          <p className="generated-output">No recommendations yet.</p>
+        )}
       </div>
     </div>
   );
