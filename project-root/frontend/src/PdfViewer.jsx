@@ -12,6 +12,10 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const [recommendations, setRecommendations] = useState([]);
   const pollingRef = useRef(null);
 
+  // This log statement is for debugging purposes.
+  // Check your browser's console to see the value of taskName.
+  console.log("Current taskName:", taskName);
+
   useEffect(() => {
     const initAdobeView = () => {
       if (viewerRef.current) {
@@ -69,9 +73,11 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     };
   }, [freshPdf]);
 
-const handleGenerate = async () => {
-    if (!selectedText) {
-      setMessage("Please select some text first.");
+  const handleGenerate = async () => {
+    if (!selectedText || !taskName) {
+      // The `!taskName` check is the key here.
+      // The error you're seeing means this condition is true.
+      setMessage("Please select some text and ensure a task is loaded.");
       return;
     }
 
@@ -98,7 +104,8 @@ const handleGenerate = async () => {
       console.error("Error generating recommendations:", err);
       setMessage("Error generating recommendations.");
     }
-};
+  };
+
   return (
     <div className="pdf-page-container">
       {/* Left Sidebar */}

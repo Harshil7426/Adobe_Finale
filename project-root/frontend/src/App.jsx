@@ -167,20 +167,22 @@ function App() {
     setFreshFile(null);
   };
 
-  const handleStartTask = () => {
-    if (activeTask && activeTask.status === 'ready') {
-      setViewingPdf({
-        freshPdf: {
-          name: activeTask.fresh_files[0],
-          url: `${API_URL}/pdfs/${activeTask.task_name}/${activeTask.fresh_files[0]}`
-        },
-        bulkPdfs: activeTask.bulk_files.map(file => ({
-          name: file,
-          url: `${API_URL}/pdfs/${activeTask.task_name}/bulk/${file}`
-        }))
-      });
-    }
-  };
+const handleStartTask = () => {
+  if (activeTask && activeTask.status === 'ready') {
+    setViewingPdf({
+      taskName: activeTask.task_name,   // ✅ add this
+      freshPdf: {
+        name: activeTask.fresh_files[0],
+        url: `${API_URL}/pdfs/${activeTask.task_name}/${activeTask.fresh_files[0]}`
+      },
+      bulkPdfs: activeTask.bulk_files.map(file => ({
+        name: file,
+        url: `${API_URL}/pdfs/${activeTask.task_name}/bulk/${file}`
+      }))
+    });
+  }
+};
+
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return 'No date available';
@@ -190,8 +192,16 @@ function App() {
   };
 
   if (viewingPdf) {
-    return <PdfViewer freshPdf={viewingPdf.freshPdf} bulkPdfs={viewingPdf.bulkPdfs} onBack={() => setViewingPdf(null)} />;
-  }
+  return (
+    <PdfViewer
+      freshPdf={viewingPdf.freshPdf}
+      bulkPdfs={viewingPdf.bulkPdfs}
+      taskName={viewingPdf.taskName}   // ✅ Pass taskName here
+      onBack={() => setViewingPdf(null)}
+    />
+  );
+}
+
 
   return (
     <div className="app-container">
