@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FaChevronLeft, FaFilePdf, FaChevronDown } from "react-icons/fa";
-
+import "./Pdfviewer.css"
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
 
 function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
