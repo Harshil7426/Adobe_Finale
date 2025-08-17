@@ -12,8 +12,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const [recommendations, setRecommendations] = useState([]);
   const pollingRef = useRef(null);
 
-  // This log statement is for debugging purposes.
-  // Check your browser's console to see the value of taskName.
   console.log("Current taskName:", taskName);
 
   useEffect(() => {
@@ -47,8 +45,11 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
             pollingRef.current = setInterval(async () => {
               try {
                 const result = await apis.getSelectedContent();
-                const text = result?.data || "";
-                setSelectedText(text);
+                // ✅ Extract plain string only
+                const text = Array.isArray(result?.data)
+                  ? result.data[0]?.text
+                  : "";
+                setSelectedText(text || "");
               } catch (err) {
                 console.error("Polling error:", err);
               }
@@ -75,14 +76,17 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
 
   const handleGenerate = async () => {
     if (!selectedText || !taskName) {
-      // The `!taskName` check is the key here.
-      // The error you're seeing means this condition is true.
       setMessage("Please select some text and ensure a task is loaded.");
       return;
     }
 
     try {
       setMessage("Generating recommendations...");
+
+      console.log("Sending request:", {
+        task_name: taskName,
+        query_text: selectedText,
+      });
 
       const response = await fetch("http://127.0.0.1:8000/get_recommendations", {
         method: "POST",
@@ -150,13 +154,17 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
             <p>{selectedText}</p>
           </div>
         )}
-        
+
         {recommendations.length > 0 ? (
           recommendations.map((rec, idx) => (
             <div key={idx} className="recommendation-card">
               <h4>{rec.pdf_name} (Page {rec.page_number})</h4>
-              <p><strong>Section:</strong> {rec.section}</p>
-              <p><strong>Reason:</strong> {rec.reason}</p>
+              <p>
+                <strong>Section:</strong> {rec.section}
+              </p>
+              <p>
+                <strong>Reason:</strong> {rec.reason}
+              </p>
             </div>
           ))
         ) : (

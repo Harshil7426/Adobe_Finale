@@ -128,33 +128,35 @@ async def upload_task(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
 
-
 @app.post("/get_recommendations")
 async def get_recommendations_endpoint(request_body: RecommendationRequest):
-    """
-    Takes selected text and a task name, runs the semantic search, and returns relevant sections.
-    Robustly coerces Adobe selection payloads to a plain string.
-    """
     try:
+        print("Incoming request body:", request_body.dict())  # 👈 add this
+
         task_path = TASK_DIR / request_body.task_name
         if not task_path.exists():
             raise HTTPException(status_code=400, detail=f"Task '{request_body.task_name}' not found.")
 
         query_text_str = _coerce_text(request_body.query_text)
+        print("Coerced query_text:", repr(query_text_str))  # 👈 add this
+
         if not query_text_str:
             raise HTTPException(status_code=400, detail="Empty query_text after coercion.")
 
         recommendations = model.get_recommendations(request_body.task_name, query_text_str, task_path)
+        print("Generated recommendations:", recommendations)  # 👈 add this
 
-        # Save the recommendations to a JSON file in the task directory (optional, for debugging)
         recommendations_path = task_path / "recommendations.json"
         with open(recommendations_path, "w", encoding="utf-8") as f:
             json.dump(recommendations, f, indent=4, ensure_ascii=False)
 
         return JSONResponse(content={"recommendations": recommendations})
+
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print("Full traceback:\n", traceback.format_exc())  # 👈 this will show exact error
         raise HTTPException(status_code=500, detail=f"Recommendation retrieval failed: {str(e)}")
 
 

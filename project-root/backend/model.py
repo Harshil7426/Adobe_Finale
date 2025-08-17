@@ -15,16 +15,22 @@ except Exception as e:
     EMBEDDING_MODEL = None
 
 
+# In model.py
+
 def chunk_text(pdf_path: Path) -> List[Dict[str, Any]]:
-    """Extracts and chunks text from a PDF page by page."""
+    """Extracts and chunks text from a PDF, splitting by paragraph."""
     chunks: List[Dict[str, Any]] = []
     try:
         doc = fitz.open(pdf_path)
         for page_num, page in enumerate(doc, start=1):
             text = page.get_text()
-            if text and text.strip():
+            
+            # Split text by paragraphs (two or more newlines)
+            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+
+            for para in paragraphs:
                 chunks.append({
-                    "text": text,
+                    "text": para,
                     "pdf_name": pdf_path.name,
                     "page_number": page_num
                 })
@@ -117,10 +123,11 @@ def get_recommendations(task_name: str, query_text: str, task_path: Path) -> Lis
         pass
 
     results = collection.query(
-        query_embeddings=query_embedding,
-        n_results=3,
-        include=['documents', 'metadatas', 'distances', 'ids']
+        query_texts=[query_text],
+        n_results=5,
+        include=["documents", "metadatas", "distances"]
     )
+
 
     # Guard against empty results
     if not results or not results.get('ids') or not results['ids'] or not results['ids'][0]:
