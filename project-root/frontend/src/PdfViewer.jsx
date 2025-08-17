@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaChevronLeft, FaFilePdf } from "react-icons/fa";
+import { FaChevronLeft, FaFilePdf, FaChevronDown } from "react-icons/fa";
 
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
 
 function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
   const viewerRef = useRef(null);
   const apisRef = useRef(null);
-  const [message, setMessage] = useState("Please select text in the PDF.");
-  const [selectedText, setSelectedText] = useState("");
+  const [message, setMessage] = useState("PDF loaded. Select text to enable Generate.");
+  const [selectedText, setSelectedText] = useState(""); // internal only
   const [generatedText, setGeneratedText] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false); // new
+  const pollingRef = useRef(null);
 
   useEffect(() => {
     const initAdobeView = () => {
@@ -36,51 +38,50 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
         previewFilePromise.then((adobeViewer) => {
           adobeViewer.getAPIs().then((apis) => {
             apisRef.current = apis;
-            setMessage("PDF loaded. Select text to see it appear here.");
 
-            // ✅ Subscribe to text selection event
-            adobeViewer.registerCallback(
-              window.AdobeDC.View.Enum.CallbackType.TEXT_SELECTED,
-              function (eventData) {
-                const text = eventData?.data?.text || "";
-                setSelectedText(text);
-              },
-              {}
-            );
+            // Polling to get selected text (hidden)
+            pollingRef.current = setInterval(async () => {
+              try {
+                const result = await apis.getSelectedContent();
+                const text = result?.data || "";
+                setSelectedText(text); // save internally
+              } catch (err) {
+                console.error("Polling error:", err);
+              }
+            }, 500);
           });
         });
       }
     };
 
-    if (window.AdobeDC) {
-      initAdobeView();
-    } else {
+    if (window.AdobeDC) initAdobeView();
+    else {
       const script = document.createElement("script");
       script.src = "https://documentcloud.adobe.com/view-sdk/main.js";
       script.async = true;
       document.body.appendChild(script);
       script.onload = initAdobeView;
-
-      return () => {
-        document.body.removeChild(script);
-      };
+      return () => document.body.removeChild(script);
     }
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
   }, [freshPdf]);
 
-  const handleGenerate = () => {
-    if (selectedText) {
-      console.log("Generating with the text:", selectedText);
-      setMessage(`Generating with the text: "${selectedText}"`);
-      setGeneratedText(selectedText);
-    } else {
+  const handleOptionClick = (type) => {
+    if (!selectedText) {
       setMessage("Please select some text first.");
-      setGeneratedText("");
+      return;
     }
+    setGeneratedText(`${type} generated for your selection`);
+    setMessage(`Generated: ${type}`);
+    setDropdownOpen(false);
   };
 
   return (
-    <div className="pdf-viewer-page">
-      {/* Sidebar */}
+    <div className="pdf-page-container">
+      {/* Left Sidebar */}
       <div className="sidebar">
         <button onClick={onBack} className="back-btn">
           <FaChevronLeft size={16} /> Back
@@ -95,37 +96,36 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack }) {
           ))}
         </div>
 
-        <button
-          className="generate-btn"
-          onClick={handleGenerate}
-          disabled={!selectedText}
-        >
-          Generate
-        </button>
+        {/* Generate Dropdown */}
+        <div className="generate-dropdown-wrapper">
+          <button
+            className={`generate-btn ${!selectedText ? "disabled" : ""}`}
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            disabled={!selectedText}
+          >
+            Generate <FaChevronDown size={12} />
+          </button>
 
-        <div className="selected-text-display">
-          {generatedText && (
-            <>
-              <p>
-                Generated Text: <strong>{generatedText}</strong>
-              </p>
-              <p className="selected-text-p">
-                Selected Text: <strong>{selectedText}</strong>
-              </p>
-            </>
+          {dropdownOpen && (
+            <div className="dropdown-menu">
+              <div onClick={() => handleOptionClick("Recommendation")}>Recommendation</div>
+              <div onClick={() => handleOptionClick("Insights")}>Insights</div>
+              <div onClick={() => handleOptionClick("Podcast")}>Podcast</div>
+            </div>
           )}
-          {!generatedText && selectedText && (
-            <p className="selected-text-p">
-              Selected Text: <strong>{selectedText}</strong>
-            </p>
-          )}
-          {!selectedText && <p>{message}</p>}
         </div>
+
+        <div className="message-box">{message}</div>
       </div>
 
-      {/* PDF Viewer */}
-      <div className="viewer-container">
-        <div id="adobe-dc-view" ref={viewerRef} className="viewer-box"></div>
+      {/* Center Viewer */}
+      <div className="center-viewer">
+        <div ref={viewerRef} id="adobe-dc-view" className="viewer-box"></div>
+      </div>
+
+      {/* Right Panel */}
+      <div className="right-panel">
+        {generatedText && <p className="generated-output">{generatedText}</p>}
       </div>
     </div>
   );

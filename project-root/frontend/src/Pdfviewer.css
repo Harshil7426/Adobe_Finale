@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f0f2f5;
+  color: #333;
+}
+
+.pdf-page-container {
+  display: grid;
+  grid-template-columns: 20% 60% 20%;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  gap: 15px;
+  padding: 10px;
+  box-sizing: border-box;
+  width: 100vw;
+}
+
+/* ===== Sidebar ===== */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(145deg, #ffffff, #f1f1f1);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  height: 93vh;
+  transition: all 0.3s ease;
+}
+
+.back-btn {
+  background: #e4e4e4;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover { background: #d4d4d4; }
+
+.bulk-pdf-list {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 15px;
+  background: #fafafa;
+}
+
+.bulk-pdf-item {
+  background: #f1f1f1;
+  border-radius: 16px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.bulk-pdf-item:hover {
+  transform: translateX(5px);
+  background: #e0e0e0;
+}
+
+/* ===== Generate Button ===== */
+.generate-btn {
+  background: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.generate-btn:hover {
+  background: #45a049;
+}
+
+.generate-btn.disabled, .generate-btn:disabled {
+  background: #a5d6a7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== Messages ===== */
+.message-box {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #555;
+  transition: all 0.3s ease;
+}
+
+/* ===== Center Viewer ===== */
+.center-viewer {
+  background: #f9f9f9;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+.viewer-box {
+  height: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  background: #fff;
+  transition: all 0.3s ease;
+}
+
+.viewer-box canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ===== Right Panel ===== */
+.right-panel {
+  background: linear-gradient(145deg, #ffffff, #f9f9f9);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  height: 93vh;
+}
+
+.generated-output {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+  opacity: 0;
+  animation: fadeIn 0.5s forwards;
+}
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+  to { opacity: 1; }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .pdf-page-container {
+    grid-template-columns: 25% 50% 25%;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pdf-page-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    height: auto;
+  }
+  
+  .sidebar, .right-panel {
+    height: auto;
+    margin-bottom: 10px;
+  }
+
+  .viewer-box {
+    height: 60vh;
+  }
+}
+.generate-dropdown-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.generate-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 45px;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  overflow: hidden;
+  animation: waterfall 0.3s ease forwards;
+  z-index: 10;
+}
+
+.dropdown-menu div {
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dropdown-menu div:hover {
+  background: #f1f1f1;
+}
+
+/* Waterfall fade + slide animation */
+@keyframes waterfall {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}

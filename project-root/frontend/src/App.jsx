@@ -254,6 +254,7 @@ function App() {
               {isUploading ? <FaSpinner className="spinner" /> : <FaPaperclip />} Upload Documents
             </button>
           </div>
+          <p className="status-message">{uploadStatus}</p>
         </div>
 
         {/* Tasks Section */}
