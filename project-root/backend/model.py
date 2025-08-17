@@ -2,10 +2,10 @@ import os
 import time
 from pathlib import Path
 from typing import List, Dict, Any
-
-import fitz  # PyMuPDF
+import re
+import fitz
 from sentence_transformers import SentenceTransformer
-from chromadb import PersistentClient  # persist on disk
+from chromadb import PersistentClient
 
 # Initialize the embedding model to load it once (force CPU usage)
 try:
@@ -14,8 +14,12 @@ except Exception as e:
     print(f"Error loading SentenceTransformer model: {e}")
     EMBEDDING_MODEL = None
 
-
-# In model.py
+def preprocess_text(text: str) -> str:
+    """Cleans and normalizes text for better embedding quality."""
+    text = re.sub(r'(\w+)-\n(\w+)', r'\1\2', text)
+    text = re.sub(r'\n+', ' ', text).strip()
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
 
 def chunk_text(pdf_path: Path) -> List[Dict[str, Any]]:
     """Extracts and chunks text from a PDF, splitting by paragraph."""
@@ -25,8 +29,9 @@ def chunk_text(pdf_path: Path) -> List[Dict[str, Any]]:
         for page_num, page in enumerate(doc, start=1):
             text = page.get_text()
             
-            # Split text by paragraphs (two or more newlines)
-            paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+            cleaned_text = preprocess_text(text)
+            
+            paragraphs = [p.strip() for p in cleaned_text.split('.') if p.strip()]
 
             for para in paragraphs:
                 chunks.append({
@@ -39,6 +44,7 @@ def chunk_text(pdf_path: Path) -> List[Dict[str, Any]]:
         print(f"Error parsing PDF {pdf_path}: {e}")
     return chunks
 
+# In model.py
 
 def embed_documents(task_name: str, bulk_dir: Path, task_path: Path):
     """
@@ -52,15 +58,12 @@ def embed_documents(task_name: str, bulk_dir: Path, task_path: Path):
     print(f"Starting embedding process for task: {task_name}")
     start_time = time.time()
 
-    # Initialize ChromaDB client to save data inside the task directory
     chroma_db_path = str(task_path / "chroma")
     client = PersistentClient(path=chroma_db_path)
-
-    # Create or get a collection for this specific task
     collection = client.get_or_create_collection(name=task_name)
 
     pdf_files = [f for f in os.listdir(bulk_dir) if f.lower().endswith(".pdf")]
-
+    
     all_chunks: List[Dict[str, Any]] = []
     for pdf_file in pdf_files:
         pdf_path = bulk_dir / pdf_file
@@ -73,26 +76,42 @@ def embed_documents(task_name: str, bulk_dir: Path, task_path: Path):
     texts = [c['text'] for c in all_chunks]
     metadatas = [{"pdf_name": c['pdf_name'], "page_number": c['page_number']} for c in all_chunks]
 
-    embeddings = EMBEDDING_MODEL.encode(texts, convert_to_tensor=False)
-    # if numpy array, give it .tolist()
-    try:
-        embeddings_list = embeddings.tolist()
-    except AttributeError:
-        embeddings_list = embeddings
+    # Batching logic starts here
+    batch_size = 5000  # A safe batch size, slightly below the max limit
+    num_batches = (len(all_chunks) + batch_size - 1) // batch_size
+    
+    print(f"Total chunks to embed: {len(all_chunks)}. Splitting into {num_batches} batches of size {batch_size}.")
 
-    ids = [f"{task_name}_{meta['pdf_name']}_page_{meta['page_number']}" for meta in metadatas]
+    for i in range(num_batches):
+        start_index = i * batch_size
+        end_index = min((i + 1) * batch_size, len(all_chunks))
+        
+        batch_texts = texts[start_index:end_index]
+        batch_metadatas = metadatas[start_index:end_index]
+        
+        # Embed the current batch
+        embeddings = EMBEDDING_MODEL.encode(batch_texts, convert_to_tensor=False)
+        try:
+            embeddings_list = embeddings.tolist()
+        except AttributeError:
+            embeddings_list = embeddings
 
-    collection.add(
-        embeddings=embeddings_list,
-        documents=texts,
-        metadatas=metadatas,
-        ids=ids
-    )
+        batch_ids = [f"{task_name}_{meta['pdf_name']}_page_{meta['page_number']}_chunk_{j}" 
+                     for j, meta in enumerate(batch_metadatas)]
+
+        print(f"Adding batch {i+1}/{num_batches} with size {len(batch_texts)}...")
+        
+        # Add the batch to the collection
+        collection.add(
+            embeddings=embeddings_list,
+            documents=batch_texts,
+            metadatas=batch_metadatas,
+            ids=batch_ids
+        )
 
     end_time = time.time()
     print(f"Embedded {len(all_chunks)} chunks for {task_name} in {end_time - start_time:.2f}s.")
     print(f"ChromaDB embeddings saved to: {chroma_db_path}")
-
 
 def get_recommendations(task_name: str, query_text: str, task_path: Path) -> List[Dict[str, Any]]:
     """
@@ -123,14 +142,13 @@ def get_recommendations(task_name: str, query_text: str, task_path: Path) -> Lis
         pass
 
     results = collection.query(
-        query_texts=[query_text],
+        query_embeddings=query_embedding,
         n_results=5,
         include=["documents", "metadatas", "distances"]
     )
-
-
-    # Guard against empty results
+    
     if not results or not results.get('ids') or not results['ids'] or not results['ids'][0]:
+        print("No results found for the given query.")
         return []
 
     recommendations: List[Dict[str, Any]] = []
@@ -139,9 +157,9 @@ def get_recommendations(task_name: str, query_text: str, task_path: Path) -> Lis
             f"This section is semantically relevant to '{query_text}' based on embedding similarity."
         )
         recommendations.append({
-            "pdf_name": results['metadatas'][0][i].get('pdf_name', ''),
+            "pdf_name": results['metadatas'][0][i].get('pdf_name', 'N/A'),
             "section": results['documents'][0][i],
-            "page_number": results['metadatas'][0][i].get('page_number', None),
+            "page_number": results['metadatas'][0][i].get('page_number', 'N/A'),
             "reason": reason
         })
 
