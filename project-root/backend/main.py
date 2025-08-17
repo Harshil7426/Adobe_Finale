@@ -51,11 +51,9 @@ except Exception as e:
     GEMINI_MODEL = None
 
 # In main.py
-# In main.py
 def refine_with_gemini(text: str, query: str) -> Dict:
     """
-    Shortens the raw text and sends the full text to the Gemini API
-    to generate a specific reason.
+    Sends the raw text and query to the Gemini API for summarization and reason generation.
     Returns a dictionary with 'section' and 'reason'.
     """
     if not GEMINI_MODEL:
@@ -64,40 +62,49 @@ def refine_with_gemini(text: str, query: str) -> Dict:
             "reason": f"Gemini API not available. This is a generic reason for '{query}'."
         }
 
-    # Prompt for the reason only, using the full, original text
-    reason_prompt = f"""
-    You are an AI assistant that provides a specific reason for a document's relevance to a query.
+    prompt = f"""
+    You are an AI assistant that summarizes document sections based on a user's query.
+    
+    The user's query is: "{query}"
+    
+    The document section is: "{text}"
+    
+    Instruction: Summarize the document section in 1-2 sentences, focusing on its relevance to the user's query. Then, provide a different one-sentence, concise reason for why this specific section was chosen.
+    
+    Example Output:
+    Summary: The research paper proposes a hybrid malware classification model using Random Forest and XGBoost algorithms.
+    Reason: This section was chosen because it directly mentions the machine learning models specified in the user's query.
 
-    The original query is: "{query}"
-
-    The relevant document section is: "{text}"
-
-    Please provide a one-sentence, specific reason why this document section is relevant to the query. For example:
-    "This section is relevant because it discusses the benefits of using an ensemble model, which is a key concept in the query."
-
-    The reason must be unique and different for every recommendation.
+    Your output must start with "Summary: " followed by the summary, and then a new line with "Reason: " followed by the reason.
     """
 
-    # Shorten the section without rephrasing
-    shortened_section = text[:200].strip() + "..."
-    if len(text) <= 200:
-        shortened_section = text.strip()
-
     try:
-        # Get the reason from Gemini based on the full text
-        response = GEMINI_MODEL.generate_content(reason_prompt)
-        curated_reason = response.text.strip()
-
+        response = GEMINI_MODEL.generate_content(prompt)
+        raw_output = response.text.strip()
+        
+        # Robust parsing to handle non-JSON output
+        summary = "Summary could not be generated."
+        reason = "Reason could not be generated."
+        
+        if raw_output:
+            lines = raw_output.split('\n')
+            if len(lines) >= 2:
+                if lines[0].startswith("Summary:"):
+                    summary = lines[0][len("Summary:"):].strip()
+                if lines[1].startswith("Reason:"):
+                    reason = lines[1][len("Reason:"):].strip()
+        
         return {
-            "section": shortened_section,
-            "reason": curated_reason
+            "section": summary,
+            "reason": reason
         }
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
         return {
-            "section": shortened_section,
+            "section": text[:200].strip() + "...",
             "reason": f"Failed to get a specific reason from Gemini for '{query}'."
         }
+
 @app.post("/upload_task")
 async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] = File(...), fresh_file: UploadFile = File(...)):
     """
