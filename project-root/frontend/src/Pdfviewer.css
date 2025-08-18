@@ -502,25 +502,31 @@ body {
 }
 
 
-.content-container {
+/* Modified content-container for recommendations */
+.content-container-wrapper {
+  position: relative; /* For positioning arrows */
   display: flex;
-  gap: 18px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  padding: 16px 8px;
-  scrollbar-width: none;
-  animation: bounceTab 0.5s ease;
+  align-items: center; /* Vertically align arrows with content */
+  width: 100%;
+}
+
+.content-container.recommendations-scroll-container {
+  display: flex; /* Ensure horizontal layout for cards */
+  flex-wrap: nowrap; /* Prevent cards from wrapping to next line */
+  overflow-x: auto; /* Enable horizontal scrolling */
+  scroll-snap-type: x mandatory; /* Snap to cards when scrolling */
+  padding: 16px 8px; /* Padding inside the scroll container */
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  -ms-overflow-style: none; /* Hide scrollbar for IE/Edge */
   background-color: #c7daec;
   border-radius: 20px;
-
-}
-.content-container::-webkit-scrollbar {
-  display: none; /* hide scrollbar in Chrome/Safari */
-}
-.selected-text-box ::-webkit-scrollbar {
-  display: none; /* hide scrollbar in Chrome/Safari */
+  animation: bounceTab 0.5s ease; /* Maintain existing animation */
 }
 
+/* Hide scrollbar for Chrome/Safari */
+.content-container.recommendations-scroll-container::-webkit-scrollbar {
+  display: none;
+}
 
 
 .recommendation-card {
@@ -537,6 +543,10 @@ body {
   position: relative;
   overflow: hidden;
   animation: bounceTab 0.45s ease;
+  margin-right: 15px; /* Add space between cards */
+}
+.recommendation-card:last-child {
+  margin-right: 0; /* No margin on the last card */
 }
 
 /* Subtle gradient overlay for richness */
@@ -773,4 +783,75 @@ body {
   line-height: 1.6;
   color: #333;
   overflow-x: auto; /* Adds horizontal scroll if lines are very long */
+}
+
+/* NEW STYLES for Recommendation Arrows and Highlight Display */
+
+/* Wrapper for recommendations to contain arrows and scrollable content */
+.recommendation-controls {
+  display: flex;
+  align-items: center; /* Vertically center arrows with the scroll container */
+  width: 100%;
+  gap: 10px; /* Space between arrows and content */
+}
+
+/* Style for the scroll arrow buttons */
+.scroll-arrow {
+  background: linear-gradient(135deg, #2563eb, #7c3aed); /* Gradient background */
+  color: white;
+  border: none;
+  border-radius: 50%; /* Circular buttons */
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  flex-shrink: 0; /* Prevent arrows from shrinking */
+}
+
+.scroll-arrow:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+.scroll-arrow:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Area to display the highlighted section text */
+.recommended-viewer-area {
+  display: flex;
+  flex-direction: column; /* Stack viewer and text vertically */
+  flex: 1; /* Take available space */
+}
+
+.highlighted-section-display {
+  background: linear-gradient(145deg, #f0f4f9, #e0e7ff); /* Soft gradient background */
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  border: 1px solid #c3d4ef;
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.highlighted-section-display h4 {
+  font-size: 1em;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #d4d4d4;
+  padding-bottom: 5px;
+}
+
+.highlighted-section-display p {
+  font-size: 0.9em;
+  color: #555;
+  line-height: 1.5;
+  margin-bottom: 0;
 }

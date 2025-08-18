@@ -12,7 +12,7 @@ from datetime import datetime
 import model 
 import json
 import google.generativeai as genai
-import re # Import the re module
+import re 
 import time
 import random
 
@@ -44,17 +44,17 @@ class RecommendationRequest(BaseModel):
 class InsightsRequest(BaseModel):
     query_text: str
     recommendations: List[Dict[str, Any]]
-    task_name: str # Added task_name
+    task_name: str 
 
 class PodcastRequest(BaseModel):
     query_text: str
     recommendations: List[Dict[str, Any]]
     insights: Dict[str, Any]
-    task_name: str # Added task_name
+    task_name: str 
 
 # Configure the Gemini API with your API key
 # ⚠️ WARNING: This is a security risk. Do not commit this file to a public repository.
-GEMINI_API_KEY = "AIzaSyCZnpirD70ApqQNXFo22h1BjQHmNbBB2jA" # Your Gemini API Key
+GEMINI_API_KEY = "AIzaSyBZJlrA3Epd51H8HkhOM5JUXRtCnXDu3F8" # Your Gemini API Key
 
 try:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -161,11 +161,10 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         (task_path / 'status.txt').write_text('processing')
         (task_path / 'created_at.txt').write_text(datetime.now().isoformat())
         
-        # model.embed_documents is not in the provided code, assuming it exists
-        # and has been fixed.
-        # import model
-        # model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
+        # ⭐ FIX: Call model.embed_documents to process and embed PDFs into ChromaDB
+        model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
         
+        # After embedding, move files from temp_bulk to bulk
         for file in os.listdir(temp_bulk_dir):
             shutil.move(temp_bulk_dir / file, bulk_dir / file)
         shutil.rmtree(temp_bulk_dir)
@@ -206,6 +205,7 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
 
         return JSONResponse(content={"recommendations": final_recommendations})
     except Exception as e:
+        print(f"Error generating recommendations: {e}") # Added more specific logging
         raise HTTPException(status_code=500, detail=f"Recommendation retrieval failed: {str(e)}")
 
 
@@ -242,7 +242,7 @@ async def get_insights_endpoint(request_body: InsightsRequest):
         insights_data = {"facts": [], "didYouKnows": []} # Default empty structure
         
         if json_match:
-            json_string = json_match.group(1)
+            json_string = json_match.group(1) # Extract the content inside the first group
             try:
                 insights_data = json.loads(json_string)
                 # Ensure the structure matches what the frontend expects
@@ -251,7 +251,7 @@ async def get_insights_endpoint(request_body: InsightsRequest):
                     insights_data = {"facts": [json_string], "didYouKnows": []}
             except json.JSONDecodeError:
                 # If the extracted string isn't valid JSON, treat the whole response as a single fact
-                insights_data = {"facts": [raw_text_response], "didYouKnows": []}
+                insights_data = {"facts": [raw_text_response], "didYouKnows": []} # Use raw_text_response here as fallback
         else:
             # If no JSON block is found, try to parse the entire response, or fallback to raw text
             try:
@@ -264,7 +264,6 @@ async def get_insights_endpoint(request_body: InsightsRequest):
 
         # Save the insights to insights.json
         task_path = TASK_DIR / request_body.task_name
-        # Ensure the task directory exists before writing files
         task_path.mkdir(parents=True, exist_ok=True) 
         insights_path = task_path / "insights.json"
         with open(insights_path, "w") as f:
@@ -311,7 +310,6 @@ async def get_podcast_script_endpoint(request_body: PodcastRequest):
 
         # Save the podcast script to podcast.json
         task_path = TASK_DIR / request_body.task_name
-        # Ensure the task directory exists before writing files
         task_path.mkdir(parents=True, exist_ok=True)
         podcast_path = task_path / "podcast.json"
         with open(podcast_path, "w") as f:

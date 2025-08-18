@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaChevronLeft, FaFilePdf } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaFilePdf } from "react-icons/fa"; // Import FaChevronRight
 import "./Pdfviewer.css"; // Ensure this CSS file exists and is linked
 
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
@@ -29,6 +29,10 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   // State for the recommended PDF viewer instance
   const [recommendedPdfViewerUrl, setRecommendedPdfViewerUrl] = useState(null);
   const recommendedViewerRef = useRef(null);
+  const recommendationContentRef = useRef(null); // Ref for scrolling recommendations
+
+  // State to store the highlighted section text for display
+  const [currentHighlightedSection, setCurrentHighlightedSection] = useState("");
 
   console.log("Current taskName:", taskName);
 
@@ -108,9 +112,10 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
             console.log("Recommended PDF loaded, navigating to page:", recommendedPdfViewerUrl.pageNumber);
             adobeViewer.getAPIs().then((apis) => {
               if (recommendedPdfViewerUrl.pageNumber) {
+                // Jump to specific page and zoom in
                 apis.gotoLocation(
                   { pageNumber: recommendedPdfViewerUrl.pageNumber },
-                  { zoom: 200 }
+                  { zoom: 200 } // Adjust zoom level as needed
                 );
               }
             });
@@ -145,7 +150,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         throw new Error("Failed to fetch recommendations");
       }
       const recData = await recResponse.json();
-      // ⭐ MODIFICATION HERE: Ensure recommendations is always an array
       const recommendations = Array.isArray(recData.recommendations) ? recData.recommendations : [];
       setRecommendations(recommendations);
       setMessage("Recommendations generated. Now creating insights and podcast script...");
@@ -196,19 +200,29 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     }
   };
 
-  // Handler to open a recommended PDF
-  const handleOpenRecommendation = (pdfName, pageNumber) => {
-    // Correctly construct the URL for the recommended PDF
+  // Handler to open a recommended PDF and set highlighted section
+  const handleOpenRecommendation = (pdfName, pageNumber, sectionContent) => {
     const recommendedUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
-
-    // Update the state to load the new PDF in the secondary viewer
     setRecommendedPdfViewerUrl({ url: recommendedUrl, name: pdfName, pageNumber });
+    setCurrentHighlightedSection(sectionContent); // Set the section content for display
   };
 
   // New handler for bulk PDF list clicks
   const handleBulkPdfClick = (pdfName) => {
     const bulkUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: bulkUrl, name: pdfName, pageNumber: 1 });
+    setCurrentHighlightedSection(""); // Clear highlighted section when opening a new bulk PDF
+  };
+
+  // Navigation functions for recommendation cards
+  const scrollRecommendations = (direction) => {
+    if (recommendationContentRef.current) {
+      const scrollAmount = recommendationContentRef.current.offsetWidth * 0.8; // Scroll 80% of visible width
+      recommendationContentRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth" // Smooth scroll for animation
+      });
+    }
   };
 
 
@@ -231,85 +245,103 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const renderContent = () => {
     switch (activeView) {
       case "recommendation":
-        return recommendations.length > 0 ? (
-          recommendations.map((rec, idx) => (
-            <div
-              key={idx}
-              className="recommendation-card"
-              onClick={() => handleOpenRecommendation(rec.pdf_name, rec.page_number)}
-            >
-              <h4>
-                <span
-                  onMouseEnter={(e) => handleMouseEnter(rec.pdf_name, e)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  {truncateText(rec.pdf_name, TRUNCATE_LIMIT)}
-                </span>{" "}
-                (Page {rec.page_number})
-              </h4>
-              <p>
-                <strong>Section:</strong>{" "}
-                <span
-                  onMouseEnter={(e) => handleMouseEnter(rec.section, e)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  {truncateText(rec.section, TRUNCATE_LIMIT)}
-                </span>
-              </p>
-              <p>
-                <strong>Reason:</strong>{" "}
-                <span
-                  onMouseEnter={(e) => handleMouseEnter(rec.reason, e)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  {truncateText(rec.reason, TRUNCATE_LIMIT)}
-                </span>
-              </p>
+        return (
+          <>
+            <div className="recommendation-controls">
+              <button className="scroll-arrow left" onClick={() => scrollRecommendations("left")}>
+                <FaChevronLeft />
+              </button>
+              <div className="content-container recommendations-scroll-container" ref={recommendationContentRef}>
+                {recommendations.length > 0 ? (
+                  recommendations.map((rec, idx) => (
+                    <div
+                      key={idx}
+                      className="recommendation-card"
+                      // Pass section content to the handler
+                      onClick={() => handleOpenRecommendation(rec.pdf_name, rec.page_number, rec.section)}
+                    >
+                      <h4>
+                        <span
+                          onMouseEnter={(e) => handleMouseEnter(rec.pdf_name, e)}
+                          onMouseLeave={handleMouseLeave}
+                        >
+                          {truncateText(rec.pdf_name, TRUNCATE_LIMIT)}
+                        </span>{" "}
+                        (Page {rec.page_number})
+                      </h4>
+                      <p>
+                        <strong>Section:</strong>{" "}
+                        <span
+                          onMouseEnter={(e) => handleMouseEnter(rec.section, e)}
+                          onMouseLeave={handleMouseLeave}
+                        >
+                          {truncateText(rec.section, TRUNCATE_LIMIT)}
+                        </span>
+                      </p>
+                      <p>
+                        <strong>Reason:</strong>{" "}
+                        <span
+                          onMouseEnter={(e) => handleMouseEnter(rec.reason, e)}
+                          onMouseLeave={handleMouseLeave}
+                        >
+                          {truncateText(rec.reason, TRUNCATE_LIMIT)}
+                        </span>
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="generated-output">No recommendations yet. Select text and click 'Generate'.</p>
+                )}
+              </div>
+              <button className="scroll-arrow right" onClick={() => scrollRecommendations("right")}>
+                <FaChevronRight />
+              </button>
             </div>
-          ))
-        ) : (
-          <p className="generated-output">No recommendations yet.</p>
+          </>
         );
       case "insight":
         return insights ? (
-          <div className="insight-content">
-            {/* Display Facts */}
-            {insights.facts && insights.facts.length > 0 && (
-              <div className="facts-section">
-                <h3>Facts</h3>
-                <ul>
-                  {insights.facts.map((fact, index) => (
-                    <li key={index}>{fact}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {/* Display Did You Know? */}
-            {insights.didYouKnows && insights.didYouKnows.length > 0 && (
-              <div className="did-you-know-section">
-                <h3>Did You Know?</h3>
-                <ul>
-                  {insights.didYouKnows.map((dyk, index) => (
-                    <li key={index}>{dyk}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {/* Fallback if no specific facts or didYouKnows are parsed */}
-            {(!insights.facts || insights.facts.length === 0) &&
-             (!insights.didYouKnows || insights.didYouKnows.length === 0) && (
-                <p>No specific facts or "Did You Know?" insights available.</p>
-            )}
+          <div className="insight-content-wrapper"> {/* New wrapper for scrollable insights */}
+            <div className="insight-content">
+              {/* Display Facts */}
+              {insights.facts && insights.facts.length > 0 && (
+                <div className="facts-section">
+                  <h3>Facts</h3>
+                  <ul>
+                    {insights.facts.map((fact, index) => (
+                      <li key={index}>{fact}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Display Did You Know? */}
+              {insights.didYouKnows && insights.didYouKnows.length > 0 && (
+                <div className="did-you-know-section">
+                  <h3>Did You Know?</h3>
+                  <ul>
+                    {insights.didYouKnows.map((dyk, index) => (
+                      <li key={index}>{dyk}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* Fallback if no specific facts or didYouKnows are parsed */}
+              {(!insights.facts || insights.facts.length === 0) &&
+              (!insights.didYouKnows || insights.didYouKnows.length === 0) && (
+                  <p>No specific facts or "Did You Know?" insights available.</p>
+              )}
+            </div>
           </div>
         ) : (
           <p className="generated-output">No insights generated yet.</p>
         );
       case "podcast":
         return podcast ? (
-          <div className="podcast-content">
-            <h3>Podcast Script</h3>
-            {/* Use <pre> tag to preserve whitespace and line breaks from the script */}
-            <pre className="podcast-script-pre">{podcast}</pre>
+          <div className="podcast-content-wrapper"> {/* New wrapper for scrollable podcast */}
+            <div className="podcast-content">
+              <h3>Podcast Script</h3>
+              <pre className="podcast-script-pre">{podcast}</pre>
+            </div>
           </div>
         ) : (
           <p className="generated-output">No podcast script generated yet.</p>
@@ -394,14 +426,23 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
             </button>
           </div>
 
-          <div className="content-container">
+          {/* The content-container-wrapper is already there from last turn,
+              its height will be controlled by follow-on, and it will itself contain
+              the scrollable content areas for recommendations/insights/podcast */}
             {renderContent()}
-          </div>
         </div>
 
         {/* Recommended PDF Viewer */}
         {recommendedPdfViewerUrl && (
-          <div ref={recommendedViewerRef} id="adobe-dc-view-rec" className="viewer-box-rec"></div>
+          <div className="recommended-viewer-area">
+            <div ref={recommendedViewerRef} id="adobe-dc-view-rec" className="viewer-box-rec"></div>
+            {currentHighlightedSection && (
+              <div className="highlighted-section-display">
+                <h4>Highlighted Section:</h4>
+                <p>{currentHighlightedSection}</p>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
