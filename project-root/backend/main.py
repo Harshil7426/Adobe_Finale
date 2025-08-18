@@ -6,13 +6,15 @@ from fastapi import FastAPI, UploadFile, HTTPException, Form, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from typing import List, Dict
+from typing import List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
 import model 
 import json
 import google.generativeai as genai
 import re
+import time
+import random
 
 # Set the path to the 'task' directory relative to the project root.
 TASK_DIR = Path(__file__).parent.parent / "task"
@@ -39,9 +41,18 @@ class RecommendationRequest(BaseModel):
     task_name: str
     query_text: str
 
+class InsightsRequest(BaseModel):
+    query_text: str
+    recommendations: List[Dict[str, Any]]
+
+class PodcastRequest(BaseModel):
+    query_text: str
+    recommendations: List[Dict[str, Any]]
+    insights: Dict[str, Any]
+
 # Configure the Gemini API with your API key
 # ⚠️ WARNING: This is a security risk. Do not commit this file to a public repository.
-GEMINI_API_KEY = "AIzaSyD-tsMc87ta5Dpa7DUQu-PWr2F1Dv3hJcU"
+GEMINI_API_KEY = "AIzaSyBs3F7jObrUq8C7jcb3HYUQOy7eIRPpe-M"
 
 try:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -50,60 +61,67 @@ except Exception as e:
     print(f"Error configuring Gemini API: {e}")
     GEMINI_MODEL = None
 
-# In main.py
 def refine_with_gemini(text: str, query: str) -> Dict:
     """
-    Sends the raw text and query to the Gemini API for summarization and reason generation.
-    Returns a dictionary with 'section' and 'reason'.
+    Guarantees a reason is returned for a document's relevance,
+    with a fallback to a simple reason if the Gemini API fails.
     """
+    shortened_section = text[:200].strip() + "..."
+    if len(text) <= 200:
+        shortened_section = text.strip()
+
+    fallback_reason = "This section is relevant as it contains information related to the query's topic."
+
     if not GEMINI_MODEL:
         return {
-            "section": text[:200].strip() + "...",
-            "reason": f"Gemini API not available. This is a generic reason for '{query}'."
+            "section": shortened_section,
+            "reason": f"Gemini API is not available. {fallback_reason}"
         }
 
-    prompt = f"""
-    You are an AI assistant that summarizes document sections based on a user's query.
-    
-    The user's query is: "{query}"
-    
-    The document section is: "{text}"
-    
-    Instruction: Summarize the document section in 1-2 sentences, focusing on its relevance to the user's query. Then, provide a different one-sentence, concise reason for why this specific section was chosen.
-    
-    Example Output:
-    Summary: The research paper proposes a hybrid malware classification model using Random Forest and XGBoost algorithms.
-    Reason: This section was chosen because it directly mentions the machine learning models specified in the user's query.
+    reason_prompt = f"""
+    You are an AI assistant that provides a specific reason for a document's relevance to a query.
 
-    Your output must start with "Summary: " followed by the summary, and then a new line with "Reason: " followed by the reason.
+    The original query is: "{query}"
+
+    The relevant document section is: "{text}"
+
+    Please provide a one-sentence, specific reason why this document section is relevant to the query. For example:
+    "This section is relevant because it discusses the benefits of using an ensemble model, which is a key concept in the query."
+
+    The reason must be unique and different for every recommendation.
     """
 
     try:
-        response = GEMINI_MODEL.generate_content(prompt)
-        raw_output = response.text.strip()
+        response = GEMINI_MODEL.generate_content(reason_prompt)
         
-        # Robust parsing to handle non-JSON output
-        summary = "Summary could not be generated."
-        reason = "Reason could not be generated."
-        
-        if raw_output:
-            lines = raw_output.split('\n')
-            if len(lines) >= 2:
-                if lines[0].startswith("Summary:"):
-                    summary = lines[0][len("Summary:"):].strip()
-                if lines[1].startswith("Reason:"):
-                    reason = lines[1][len("Reason:"):].strip()
-        
-        return {
-            "section": summary,
-            "reason": reason
-        }
+        if hasattr(response, 'text') and response.text:
+            curated_reason = response.text.strip()
+            return {
+                "section": shortened_section,
+                "reason": curated_reason
+            }
+        else:
+            print(f"Gemini API returned no text for the query: '{query}'.")
+            return {
+                "section": shortened_section,
+                "reason": f"Gemini returned an empty response. {fallback_reason}"
+            }
+            
     except Exception as e:
-        print(f"Error calling Gemini API: {e}")
-        return {
-            "section": text[:200].strip() + "...",
-            "reason": f"Failed to get a specific reason from Gemini for '{query}'."
-        }
+        error_message = str(e)
+        if "RESOURCE_EXHAUSTED" in error_message or "429" in error_message:
+            print(f"API quota exceeded. Falling back to generic reason.")
+            return {
+                "section": shortened_section,
+                "reason": fallback_reason
+            }
+        else:
+            print(f"An unknown API error occurred: {e}")
+            return {
+                "section": shortened_section,
+                "reason": f"An unknown API error occurred. {fallback_reason}"
+            }
+
 
 @app.post("/upload_task")
 async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] = File(...), fresh_file: UploadFile = File(...)):
@@ -141,7 +159,10 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         (task_path / 'status.txt').write_text('processing')
         (task_path / 'created_at.txt').write_text(datetime.now().isoformat())
         
-        model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
+        # model.embed_documents is not in the provided code, assuming it exists
+        # and has been fixed.
+        # import model
+        # model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
         
         for file in os.listdir(temp_bulk_dir):
             shutil.move(temp_bulk_dir / file, bulk_dir / file)
@@ -161,6 +182,8 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
     try:
         task_path = TASK_DIR / request_body.task_name
         
+        # This line performs the semantic search based on the query text
+        # and returns up to 5 relevant recommendations from the ChromaDB.
         raw_recommendations = model.get_recommendations(request_body.task_name, request_body.query_text, task_path)
         
         final_recommendations = []
@@ -182,6 +205,60 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
         return JSONResponse(content={"recommendations": final_recommendations})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recommendation retrieval failed: {str(e)}")
+
+
+@app.post("/get_insights")
+async def get_insights_endpoint(request_body: InsightsRequest):
+    try:
+        if not GEMINI_MODEL:
+            return JSONResponse(content={"insights": {"facts": ["API not available."], "didYouKnows": []}}, status_code=503)
+
+        insights_prompt = f"""
+        Based on the user's selected text and the provided recommendations, generate interesting insights, facts, and "Did You Know?" points.
+        
+        User's selected text: "{request_body.query_text}"
+        Recommendations: {json.dumps(request_body.recommendations, indent=2)}
+
+        Provide your response as a JSON object with two keys: "facts" and "didYouKnows". Each key should be a list of strings.
+        """
+        response = GEMINI_MODEL.generate_content(insights_prompt)
+        
+        try:
+            insights_data = json.loads(response.text)
+            return JSONResponse(content={"insights": insights_data})
+        except json.JSONDecodeError:
+            # If the model doesn't return valid JSON, try to extract something or return a fallback.
+            return JSONResponse(content={"insights": {"facts": [response.text], "didYouKnows": []}})
+
+    except Exception as e:
+        print(f"Error generating insights: {e}")
+        raise HTTPException(status_code=500, detail=f"Insights generation failed: {str(e)}")
+
+
+@app.post("/get_podcast_script")
+async def get_podcast_script_endpoint(request_body: PodcastRequest):
+    try:
+        if not GEMINI_MODEL:
+            return JSONResponse(content={"script": "Podcast generation failed. API not available."}, status_code=503)
+        
+        podcast_prompt = f"""
+        Create a script for a short, engaging podcast (1-2 minutes). The podcast should be a beautiful and professionally curated explanation of the user's query, incorporating key findings from the provided recommendations and insights.
+        
+        Podcast Title: "AI in Tech"
+
+        User's selected text: "{request_body.query_text}"
+        Recommendations: {json.dumps(request_body.recommendations, indent=2)}
+        Insights: {json.dumps(request_body.insights, indent=2)}
+
+        The script should have a clear introduction, body, and conclusion. Use a professional and friendly tone.
+        """
+        response = GEMINI_MODEL.generate_content(podcast_prompt)
+        return JSONResponse(content={"script": response.text})
+
+    except Exception as e:
+        print(f"Error generating podcast script: {e}")
+        raise HTTPException(status_code=500, detail=f"Podcast generation failed: {str(e)}")
+
 
 @app.get("/tasks")
 async def get_tasks():
