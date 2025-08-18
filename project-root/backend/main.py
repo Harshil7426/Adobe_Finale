@@ -12,7 +12,7 @@ from datetime import datetime
 import model 
 import json
 import google.generativeai as genai
-import re
+import re # Import the re module
 import time
 import random
 
@@ -44,15 +44,17 @@ class RecommendationRequest(BaseModel):
 class InsightsRequest(BaseModel):
     query_text: str
     recommendations: List[Dict[str, Any]]
+    task_name: str # Added task_name
 
 class PodcastRequest(BaseModel):
     query_text: str
     recommendations: List[Dict[str, Any]]
     insights: Dict[str, Any]
+    task_name: str # Added task_name
 
 # Configure the Gemini API with your API key
 # ⚠️ WARNING: This is a security risk. Do not commit this file to a public repository.
-GEMINI_API_KEY = "AIzaSyBs3F7jObrUq8C7jcb3HYUQOy7eIRPpe-M"
+GEMINI_API_KEY = "AIzaSyCZnpirD70ApqQNXFo22h1BjQHmNbBB2jA" # Your Gemini API Key
 
 try:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -209,6 +211,10 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
 
 @app.post("/get_insights")
 async def get_insights_endpoint(request_body: InsightsRequest):
+    """
+    Generates insights (facts, did-you-knows) based on selected text and recommendations using Gemini API.
+    Saves the insights to insights.json.
+    """
     try:
         if not GEMINI_MODEL:
             return JSONResponse(content={"insights": {"facts": ["API not available."], "didYouKnows": []}}, status_code=503)
@@ -220,15 +226,51 @@ async def get_insights_endpoint(request_body: InsightsRequest):
         Recommendations: {json.dumps(request_body.recommendations, indent=2)}
 
         Provide your response as a JSON object with two keys: "facts" and "didYouKnows". Each key should be a list of strings.
+        Example:
+        {{
+            "facts": ["Fact 1", "Fact 2"],
+            "didYouKnows": ["Did you know 1?", "Did you know 2?"]
+        }}
         """
         response = GEMINI_MODEL.generate_content(insights_prompt)
+        raw_text_response = response.text
         
-        try:
-            insights_data = json.loads(response.text)
-            return JSONResponse(content={"insights": insights_data})
-        except json.JSONDecodeError:
-            # If the model doesn't return valid JSON, try to extract something or return a fallback.
-            return JSONResponse(content={"insights": {"facts": [response.text], "didYouKnows": []}})
+        # Use regex to extract only the JSON part from the response text
+        # This handles cases where the model might wrap JSON in markdown fences or add extra characters.
+        json_match = re.search(r"```json\s*(\{.*\})\s*```", raw_text_response, re.DOTALL)
+        
+        insights_data = {"facts": [], "didYouKnows": []} # Default empty structure
+        
+        if json_match:
+            json_string = json_match.group(1)
+            try:
+                insights_data = json.loads(json_string)
+                # Ensure the structure matches what the frontend expects
+                if not isinstance(insights_data, dict) or "facts" not in insights_data or "didYouKnows" not in insights_data:
+                    # Fallback if the JSON structure is unexpected, try to extract text as a single fact
+                    insights_data = {"facts": [json_string], "didYouKnows": []}
+            except json.JSONDecodeError:
+                # If the extracted string isn't valid JSON, treat the whole response as a single fact
+                insights_data = {"facts": [raw_text_response], "didYouKnows": []}
+        else:
+            # If no JSON block is found, try to parse the entire response, or fallback to raw text
+            try:
+                insights_data = json.loads(raw_text_response)
+                if not isinstance(insights_data, dict) or "facts" not in insights_data or "didYouKnows" not in insights_data:
+                    insights_data = {"facts": [raw_text_response], "didYouKnows": []}
+            except json.JSONDecodeError:
+                insights_data = {"facts": [raw_text_response], "didYouKnows": []}
+
+
+        # Save the insights to insights.json
+        task_path = TASK_DIR / request_body.task_name
+        # Ensure the task directory exists before writing files
+        task_path.mkdir(parents=True, exist_ok=True) 
+        insights_path = task_path / "insights.json"
+        with open(insights_path, "w") as f:
+            json.dump(insights_data, f, indent=4)
+
+        return JSONResponse(content={"insights": insights_data})
 
     except Exception as e:
         print(f"Error generating insights: {e}")
@@ -237,23 +279,45 @@ async def get_insights_endpoint(request_body: InsightsRequest):
 
 @app.post("/get_podcast_script")
 async def get_podcast_script_endpoint(request_body: PodcastRequest):
+    """
+    Generates a two-person podcast script based on selected text, recommendations, and insights using Gemini API.
+    Saves the podcast script to podcast.json.
+    """
     try:
         if not GEMINI_MODEL:
             return JSONResponse(content={"script": "Podcast generation failed. API not available."}, status_code=503)
         
         podcast_prompt = f"""
-        Create a script for a short, engaging podcast (1-2 minutes). The podcast should be a beautiful and professionally curated explanation of the user's query, incorporating key findings from the provided recommendations and insights.
-        
-        Podcast Title: "AI in Tech"
+        Create a script for a short, engaging, two-person podcast (1-2 minutes).
+        The podcast should be a professional and beautifully curated explanation of the user's query,
+        incorporating key findings from the provided recommendations and insights.
+
+        The podcast should feature two distinct speakers, "Host A" and "Host B", with their names
+        clearly preceding their dialogue.
+
+        Podcast Title: "AI in Tech" (or a more relevant title if context allows)
 
         User's selected text: "{request_body.query_text}"
         Recommendations: {json.dumps(request_body.recommendations, indent=2)}
         Insights: {json.dumps(request_body.insights, indent=2)}
 
         The script should have a clear introduction, body, and conclusion. Use a professional and friendly tone.
+        Example of dialogue format:
+        Host A: Welcome to the show!
+        Host B: Today, we're diving into...
         """
         response = GEMINI_MODEL.generate_content(podcast_prompt)
-        return JSONResponse(content={"script": response.text})
+        podcast_script = response.text # Get the raw text from the model
+
+        # Save the podcast script to podcast.json
+        task_path = TASK_DIR / request_body.task_name
+        # Ensure the task directory exists before writing files
+        task_path.mkdir(parents=True, exist_ok=True)
+        podcast_path = task_path / "podcast.json"
+        with open(podcast_path, "w") as f:
+            f.write(podcast_script) # Save the plain text script
+
+        return JSONResponse(content={"script": podcast_script})
 
     except Exception as e:
         print(f"Error generating podcast script: {e}")

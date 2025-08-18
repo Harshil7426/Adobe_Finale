@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FaChevronLeft, FaFilePdf } from "react-icons/fa";
-import "./Pdfviewer.css";
+import "./Pdfviewer.css"; // Ensure this CSS file exists and is linked
 
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
 const TRUNCATE_LIMIT = 22; // Set a character limit for truncation
@@ -19,8 +19,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const [message, setMessage] = useState("PDF loaded. Select text to enable Generate.");
   const [selectedText, setSelectedText] = useState("");
   const [recommendations, setRecommendations] = useState([]);
-  const [insights, setInsights] = useState(null);
-  const [podcast, setPodcast] = useState(null);
+  const [insights, setInsights] = useState(null); // State for insights
+  const [podcast, setPodcast] = useState(null);   // State for podcast script
   const pollingRef = useRef(null);
 
   // New state to manage the content and position of the hover element
@@ -119,6 +119,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       });
     }
   }, [recommendedPdfViewerUrl]);
+
+  // Main handler to generate recommendations, insights, and podcast script
   const handleGenerate = async () => {
     if (!selectedText || !taskName) {
       setMessage("Please select some text and ensure a task is loaded.");
@@ -143,12 +145,17 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         throw new Error("Failed to fetch recommendations");
       }
       const recData = await recResponse.json();
-      const recommendations = recData.recommendations;
+      // ⭐ MODIFICATION HERE: Ensure recommendations is always an array
+      const recommendations = Array.isArray(recData.recommendations) ? recData.recommendations : [];
       setRecommendations(recommendations);
       setMessage("Recommendations generated. Now creating insights and podcast script...");
 
       // Step 2: Get Insights
-      const insightPayload = { query_text: selectedText, recommendations: recommendations };
+      const insightPayload = {
+        query_text: selectedText,
+        recommendations: recommendations, // This is now guaranteed to be an array
+        task_name: taskName
+      };
       const insightResponse = await fetch("http://127.0.0.1:8000/get_insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,7 +172,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       const podcastPayload = {
         query_text: selectedText,
         recommendations: recommendations,
-        insights: insightData.insights
+        insights: insightData.insights,
+        task_name: taskName
       };
 
       const podcastResponse = await fetch("http://127.0.0.1:8000/get_podcast_script", {
@@ -265,7 +273,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       case "insight":
         return insights ? (
           <div className="insight-content">
-            {insights.facts && (
+            {/* Display Facts */}
+            {insights.facts && insights.facts.length > 0 && (
               <div className="facts-section">
                 <h3>Facts</h3>
                 <ul>
@@ -275,7 +284,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
                 </ul>
               </div>
             )}
-            {insights.didYouKnows && (
+            {/* Display Did You Know? */}
+            {insights.didYouKnows && insights.didYouKnows.length > 0 && (
               <div className="did-you-know-section">
                 <h3>Did You Know?</h3>
                 <ul>
@@ -285,6 +295,11 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
                 </ul>
               </div>
             )}
+            {/* Fallback if no specific facts or didYouKnows are parsed */}
+            {(!insights.facts || insights.facts.length === 0) &&
+             (!insights.didYouKnows || insights.didYouKnows.length === 0) && (
+                <p>No specific facts or "Did You Know?" insights available.</p>
+            )}
           </div>
         ) : (
           <p className="generated-output">No insights generated yet.</p>
@@ -293,7 +308,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         return podcast ? (
           <div className="podcast-content">
             <h3>Podcast Script</h3>
-            <p className="podcast-script">{podcast}</p>
+            {/* Use <pre> tag to preserve whitespace and line breaks from the script */}
+            <pre className="podcast-script-pre">{podcast}</pre>
           </div>
         ) : (
           <p className="generated-output">No podcast script generated yet.</p>
