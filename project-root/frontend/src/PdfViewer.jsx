@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaChevronLeft, FaChevronRight, FaFilePdf, FaMicrophone, FaPauseCircle, FaPlayCircle, FaSpinner } from "react-icons/fa"; // Import FaChevronRight
-import "./Pdfviewer.css"; // Ensure this CSS file exists and is linked
+import { FaChevronLeft, FaChevronRight, FaFilePdf, FaMicrophone, FaPauseCircle, FaPlayCircle, FaSpinner } from "react-icons/fa";
+import "./Pdfviewer.css";
 import './Upload.css'; 
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
-const TRUNCATE_LIMIT = 22; // Set a character limit for truncation
+const TRUNCATE_LIMIT = 22;
 
-// Helper function to truncate text
 const truncateText = (text, limit) => {
   if (text.length <= limit) {
     return text;
@@ -13,7 +12,6 @@ const truncateText = (text, limit) => {
   return text.substring(0, limit) + "...";
 };
 
-// Helper function to convert base64 to ArrayBuffer
 const base64ToArrayBuffer = (base64) => {
   const binaryString = window.atob(base64);
   const len = binaryString.length;
@@ -31,25 +29,25 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const [message, setMessage] = useState("PDF loaded. Select text to enable Generate.");
   const [selectedText, setSelectedText] = useState("");
   const [recommendations, setRecommendations] = useState([]);
-  const [insights, setInsights] = useState(null); // State for insights
-  const [podcast, setPodcast] = useState(null);   // State for podcast script
+  const [insights, setInsights] = useState(null);
+  const [podcast, setPodcast] = useState(null);
   const pollingRef = useRef(null);
 
-  // New state to manage the content and position of the hover element
   const [hoverContent, setHoverContent] = useState(null);
 
-  // State for the recommended PDF viewer instance
   const [recommendedPdfViewerUrl, setRecommendedPdfViewerUrl] = useState(null);
   const recommendedViewerRef = useRef(null);
-  const recommendationContentRef = useRef(null); // Ref for scrolling recommendations
+  const recommendationContentRef = useRef(null);
 
-  // New states for audio playback
   const [audioData, setAudioData] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioContextRef = useRef(null); // useRef for AudioContext
-  const sourceNodeRef = useRef(null);   // useRef for AudioBufferSourceNode
+  const audioContextRef = useRef(null);
+  const sourceNodeRef = useRef(null);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
-
+  const [progress, setProgress] = useState(0);
+  const animationFrameRef = useRef(null);
+  const playbackStartTimeRef = useRef(0); // New ref to store the start time of playback
+  const pausedTimeRef = useRef(0); // New ref to store the paused time
 
   console.log("Current taskName:", taskName);
 
@@ -66,13 +64,13 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
           metaData: { fileName: freshPdf.name },
         },
         {
-          embedMode: "FULL_WINDOW", // Use SIZED_CONTAINER to fit in the grid
+          embedMode: "FULL_WINDOW",
           showAnnotationTools: true,
           showLeftHandPanel: true,
           showDownloadPDF: true,
           showPrintPDF: true,
           showZoomControl: true,
-          showRightHandPanel: false, // Ensure right panel is off for main viewer
+          showRightHandPanel: false,
         }
       ).then((adobeViewer) => {
         adobeViewer.getAPIs().then((apis) => {
@@ -99,14 +97,15 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     }
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
-      // Clean up audio context
       if (audioContextRef.current) {
         audioContextRef.current.close();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [freshPdf]);
 
-  // Initialize the recommended PDF viewer
   useEffect(() => {
     if (window.AdobeDC && recommendedPdfViewerUrl) {
       const recommendedAdobeDCView = new window.AdobeDC.View({
@@ -120,7 +119,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
           metaData: { fileName: recommendedPdfViewerUrl.name },
         },
         {
-          embedMode: "SIZED_CONTAINER", // Use SIZED_CONTAINER for a smaller viewer
+          embedMode: "SIZED_CONTAINER",
           showAnnotationTools: false,
           showLeftHandPanel: false,
           showDownloadPDF: false,
@@ -134,10 +133,9 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
             console.log("Recommended PDF loaded, navigating to page:", recommendedPdfViewerUrl.pageNumber);
             adobeViewer.getAPIs().then((apis) => {
               if (recommendedPdfViewerUrl.pageNumber) {
-                // Jump to specific page and zoom in
                 apis.gotoLocation(
                   { pageNumber: recommendedPdfViewerUrl.pageNumber },
-                  { zoom: 200 } // Adjust zoom level as needed
+                  { zoom: 200 }
                 );
               }
             });
@@ -147,7 +145,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     }
   }, [recommendedPdfViewerUrl]);
 
-  // Main handler to generate recommendations, insights, and podcast script
   const handleGenerate = async () => {
     if (!selectedText || !taskName) {
       setMessage("Please select some text and ensure a task is loaded.");
@@ -161,7 +158,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         query_text: selectedText,
       };
 
-      // Step 1: Get Recommendations
       const recResponse = await fetch("http://127.0.0.1:8000/get_recommendations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -176,10 +172,9 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       setRecommendations(recommendations);
       setMessage("Recommendations generated. Now creating insights and podcast script...");
 
-      // Step 2: Get Insights
       const insightPayload = {
         query_text: selectedText,
-        recommendations: recommendations, // This is now guaranteed to be an array
+        recommendations: recommendations,
         task_name: taskName
       };
       const insightResponse = await fetch("http://127.0.0.1:8000/get_insights", {
@@ -194,7 +189,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       const insightData = await insightResponse.json();
       setInsights(insightData.insights);
 
-      // Step 3: Get Podcast Script - pass the generated insights
       const podcastPayload = {
         query_text: selectedText,
         recommendations: recommendations,
@@ -212,18 +206,17 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         throw new Error("Failed to fetch podcast script");
       }
       const podcastData = await podcastResponse.json();
-      setPodcast(podcastData.script); // Set the script text
+      setPodcast(podcastData.script);
 
-      // Step 4: Generate podcast audio from the script
       setMessage("Generating podcast audio...");
       setIsLoadingAudio(true);
-      if (isPlaying) { // Stop any currently playing audio
+      if (isPlaying) {
         stopAudio();
       }
 
       const audioPayload = {
         script: podcastData.script,
-        voice_name: "en-US-JennyNeural" // Default voice, can be made dynamic later
+        voice_name: "en-US-JennyNeural"
       };
 
       const audioResponse = await fetch("http://127.0.0.1:8000/generate_podcast_audio", {
@@ -238,7 +231,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       const audioResult = await audioResponse.json();
       const audioBuffer = base64ToArrayBuffer(audioResult.audio_base64);
       setAudioData(audioBuffer);
-      setMessage("Podcast audio generated successfully. Click the mic to play.");
+      setMessage("Podcast audio generated successfully. Click the play button.");
 
     } catch (err) {
       console.error("Error generating content:", err);
@@ -248,33 +241,28 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     }
   };
 
-  // Handler to open a recommended PDF and set highlighted section
   const handleOpenRecommendation = (pdfName, pageNumber, sectionContent) => {
     const recommendedUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: recommendedUrl, name: pdfName, pageNumber });
   };
 
-  // New handler for bulk PDF list clicks
   const handleBulkPdfClick = (pdfName) => {
     const bulkUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: bulkUrl, name: pdfName, pageNumber: 1 });
   };
 
-  // Navigation functions for recommendation cards
   const scrollRecommendations = (direction) => {
     if (recommendationContentRef.current) {
-      const scrollAmount = recommendationContentRef.current.offsetWidth * 0.8; // Scroll 80% of visible width
+      const scrollAmount = recommendationContentRef.current.offsetWidth * 0.8;
       recommendationContentRef.current.scrollBy({
         left: direction === "left" ? -scrollAmount : scrollAmount,
-        behavior: "smooth" // Smooth scroll for animation
+        behavior: "smooth"
       });
     }
   };
 
-  // New state to manage active tab
   const [activeView, setActiveView] = useState("recommendation");
 
-  // Hover event handler functions
   const handleMouseEnter = (content, event) => {
     setHoverContent({
       text: content,
@@ -287,7 +275,17 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     setHoverContent(null);
   };
 
-  // Audio playback functions
+  const updateProgressBar = () => {
+    if (sourceNodeRef.current && audioContextRef.current && sourceNodeRef.current.buffer) {
+      const currentTime = audioContextRef.current.currentTime - playbackStartTimeRef.current + pausedTimeRef.current;
+      const duration = sourceNodeRef.current.buffer.duration;
+      if (duration > 0) {
+        setProgress((currentTime / duration) * 100);
+      }
+    }
+    animationFrameRef.current = requestAnimationFrame(updateProgressBar);
+  };
+
   const playAudio = async () => {
     if (!audioData) {
       setMessage("No audio to play. Generate podcast first.");
@@ -298,7 +296,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    // Stop previous playback if any
+    // Stop previous playback if any, but don't reset pausedTimeRef
     if (sourceNodeRef.current) {
       sourceNodeRef.current.stop();
       sourceNodeRef.current.disconnect();
@@ -306,22 +304,34 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     }
 
     try {
-      const audioBuffer = await audioContextRef.current.decodeAudioData(audioData.slice(0)); // Create a copy
+      const audioBuffer = await audioContextRef.current.decodeAudioData(audioData.slice(0));
       const source = audioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioContextRef.current.destination);
-      source.start(0);
+      
+      // Start from pausedTimeRef.current if available, otherwise from 0
+      source.start(0, pausedTimeRef.current); 
+      playbackStartTimeRef.current = audioContextRef.current.currentTime; // Record current time as playback start
+      
       setIsPlaying(true);
       sourceNodeRef.current = source;
 
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = requestAnimationFrame(updateProgressBar);
+
       source.onended = () => {
         setIsPlaying(false);
+        setProgress(0);
+        pausedTimeRef.current = 0; // Reset paused time when audio ends
         sourceNodeRef.current = null;
+        cancelAnimationFrame(animationFrameRef.current);
       };
     } catch (e) {
       console.error("Error decoding or playing audio:", e);
       setMessage("Error playing audio.");
       setIsPlaying(false);
+      setProgress(0);
+      pausedTimeRef.current = 0; // Reset on error
     }
   };
 
@@ -332,6 +342,11 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       sourceNodeRef.current = null;
     }
     setIsPlaying(false);
+    // When pausing, store the current time
+    if (audioContextRef.current) {
+      pausedTimeRef.current += audioContextRef.current.currentTime - playbackStartTimeRef.current;
+    }
+    cancelAnimationFrame(animationFrameRef.current);
   };
 
   const togglePlayPause = () => {
@@ -341,6 +356,34 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       playAudio();
     }
   };
+
+  const handleProgressBarClick = (event) => {
+    if (!audioData || !audioContextRef.current || !sourceNodeRef.current || !sourceNodeRef.current.buffer) {
+      return;
+    }
+
+    const progressBar = event.currentTarget;
+    const clickX = event.clientX - progressBar.getBoundingClientRect().left;
+    const width = progressBar.offsetWidth;
+    const clickRatio = clickX / width;
+    const duration = sourceNodeRef.current.buffer.duration;
+    const seekTime = duration * clickRatio;
+
+    // Stop current playback
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    // Update pausedTimeRef to the new seekTime
+    pausedTimeRef.current = seekTime;
+    
+    // Play from the new seek time
+    playAudio();
+  };
+
 
   const renderContent = () => {
     switch (activeView) {
@@ -357,7 +400,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
                     <div
                       key={idx}
                       className="recommendation-card"
-                      // Pass section content to the handler
                       onClick={() => handleOpenRecommendation(rec.pdf_name, rec.page_number, rec.section)}
                     >
                       <h4>
@@ -401,9 +443,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         );
       case "insight":
         return insights ? (
-          <div className="insight-content-wrapper"> {/* New wrapper for scrollable insights */}
+          <div className="insight-content-wrapper">
             <div className="insight-content">
-              {/* Display Facts */}
               {insights.facts && insights.facts.length > 0 && (
                 <div className="facts-section">
                   <h3>Facts</h3>
@@ -414,7 +455,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
                   </ul>
                 </div>
               )}
-              {/* Display Did You Know? */}
               {insights.didYouKnows && insights.didYouKnows.length > 0 && (
                 <div className="did-you-know-section">
                   <h3>Did You Know?</h3>
@@ -425,7 +465,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
                   </ul>
                 </div>
               )}
-              {/* Fallback if no specific facts or didYouKnows are parsed */}
               {(!insights.facts || insights.facts.length === 0) &&
               (!insights.didYouKnows || insights.didYouKnows.length === 0) && (
                   <p>No specific facts or "Did You Know?" insights available.</p>
@@ -446,13 +485,17 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
                   <p>Generating audio...</p>
                 </div>
               ) : audioData ? (
-                <div className="audio-player">
-                  <button onClick={togglePlayPause} className="play-pause-btn">
-                    {isPlaying ? <FaPauseCircle size={40} /> : <FaPlayCircle size={40} />}
-                  </button>
-                  <FaMicrophone size={50} className="mic-icon" />
-                  {/* You can add a progress bar here if needed */}
-                </div>
+                <>
+                  <FaMicrophone size={50} className={`mic-icon ${isPlaying ? 'playing' : ''}`} />
+                  <div className="audio-controls">
+                    <button onClick={togglePlayPause} className={`play-pause-btn ${isPlaying ? 'playing-animation' : ''}`}>
+                      {isPlaying ? <FaPauseCircle size={40} /> : <FaPlayCircle size={40} />}
+                    </button>
+                    <div className="progress-container" onClick={handleProgressBarClick}>
+                      <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <p className="generated-output">Generate text and click 'Generate' to get podcast audio.</p>
               )}
@@ -466,13 +509,11 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
 
   return (
     <div className="pdf-page-container">
-      {/* Left Sidebar */}
       <div className="sidebar">
         <button onClick={onBack} className="back-btn">
           <FaChevronLeft size={16} /> <strong>{taskName}</strong>
         </button>
 
-        {/* New heading for the bulk PDF list */}
         <div className="rec">
           <h3 className="sidebar-heading">Recommendation Hub</h3>
           <div className="bulk-pdf-list">
@@ -491,12 +532,11 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
           </div>
         </div>
 
-        {/* Generate Button */}
         <div className="generate-wrapper">
           <button
             className={`generate-btn ${!selectedText ? "disabled" : ""}`}
             onClick={handleGenerate}
-            disabled={!selectedText || isLoadingAudio} // Disable if audio is loading
+            disabled={!selectedText || isLoadingAudio}
           >
             {isLoadingAudio ? 'Generating...' : 'Generate'}
           </button>
@@ -510,12 +550,10 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         )}
       </div>
 
-      {/* Center Viewer (Main PDF) */}
       <div className="center-viewer">
         <div ref={viewerRef} id="adobe-dc-view-main" className="viewer-box"></div>
       </div>
 
-      {/* Right Panel */}
       <div className="right-panel">
         <div className="follow-on">
           <div className="tabs-container">
@@ -539,13 +577,9 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
             </button>
           </div>
 
-          {/* The content-container-wrapper is already there from last turn,
-              its height will be controlled by follow-on, and it will itself contain
-              the scrollable content areas for recommendations/insights/podcast */}
             {renderContent()}
         </div>
 
-        {/* Recommended PDF Viewer */}
         {recommendedPdfViewerUrl && (
           <div className="recommended-viewer-area">
             <div ref={recommendedViewerRef} id="adobe-dc-view-rec" className="viewer-box-rec"></div>
@@ -553,7 +587,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         )}
       </div>
 
-      {/* The new hover element */}
       {hoverContent && (
         <div
           className="hover-box"

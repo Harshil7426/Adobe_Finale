@@ -284,9 +284,12 @@ function Upload() {
         </div>
 
         <div className="task-list-wrapper">
-          <div className="scroll-btn left" onClick={() => handleScrollClick('left')}>
-            <FaChevronLeft />
-          </div>
+          {tasks.length > 0 && (
+            <div className="scroll-btn left" onClick={() => handleScrollClick('left')}>
+              <FaChevronLeft />
+            </div>
+          )}
+
           <div className="task-list" ref={taskListRef}>
             {tasks.length > 0 ? (
               tasks.map((task, index) => (
@@ -338,9 +341,12 @@ function Upload() {
               <p className="no-tasks-message">No tasks created yet. Upload documents to get started!</p>
             )}
           </div>
-          <div className="scroll-btn right" onClick={() => handleScrollClick('right')}>
-            <FaChevronRight />
-          </div>
+          {tasks.length > 0 && (
+            <div className="scroll-btn right" onClick={() => handleScrollClick('right')}>
+              <FaChevronRight />
+            </div>
+          )}
+
         </div>
       </div>
 

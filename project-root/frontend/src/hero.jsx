@@ -1,217 +1,235 @@
-import React, { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
-import './hero.css';
+import React from "react";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+ FaCloudUploadAlt,
+ FaMousePointer,
+ FaLightbulb,
+ FaMagic,
+ FaHeadphones,
+ FaHistory,
+} from "react-icons/fa";
+import "./hero.css";
 
-gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+// ---------------------------
+// Framer Motion Variants
+// ---------------------------
+
+// Parent variant for card animation
+const cardVariant = {
+ hidden: { opacity: 0, y: 50 },
+ show: {
+  opacity: 1,
+  y: 0,
+  transition: {
+   duration: 0.4,
+   ease: "easeOut",
+   when: "beforeChildren",
+   staggerChildren: 0.05
+  }
+ },
+};
+
+// Child variant for content inside the card
+const contentVariant = {
+ hidden: { opacity: 0, y: 20 },
+ show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
+};
+
+// Variant for icon hover animation
+const iconHover = {
+ scale: 1.1,
+ y: -5,
+ transition: { type: "spring", stiffness: 300, damping: 10 }
+};
+
+// Variant for text hover animation
+const textHover = {
+ color: "var(--secondary-color)",
+ transition: { duration: 0.2 }
+};
+
+// ---------------------------
+// Component
+// ---------------------------
 
 const Hero = () => {
-  const step1Ref = useRef(null);
-  const step2Ref = useRef(null);
-  const step3Ref = useRef(null);
-  const aboutSectionRef = useRef(null);
-  const contactSectionRef = useRef(null);
-
-  useEffect(() => {
-    // GSAP Animations for the "How ByteMe Works" section
-    // Step 1: Upload Your PDFs
-    gsap.fromTo(step1Ref.current,
-      { opacity: 0, y: 50 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 1,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: step1Ref.current,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      }
-    );
-
-    // Step 2: Select Text
-    gsap.fromTo(step2Ref.current,
-      { opacity: 0, y: 50 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 1,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: step2Ref.current,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      }
-    );
-
-    // Step 3: Generate Insights & Recommendations
-    gsap.fromTo(step3Ref.current,
-      { opacity: 0, y: 50 },
-      {
-        opacity: 1,
-        y: 0,
-        duration: 1,
-        ease: 'power2.out',
-        scrollTrigger: {
-          trigger: step3Ref.current,
-          start: 'top 80%',
-          toggleActions: 'play none none reverse',
-        },
-      }
-    );
-
-    // Smooth scroll to sections when hash links are clicked
-    const handleHashChange = () => {
-      const id = window.location.hash.substring(1);
-      const element = document.getElementById(id);
-      if (element) {
-        gsap.to(window, {
-          duration: 1.2,
-          scrollTo: {
-            y: element,
-            offsetY: 80
-          },
-          ease: 'power3.out'
-        });
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    if (window.location.hash) {
-      handleHashChange();
-    }
-
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
-    };
-  }, []);
-
-  return (
-    <div className="hero-page">
-      {/* Top Section: Website Name, Tagline, Description, Get Started Button */}
-      <section className="hero-top-section">
-        <h1 className="hero-title">ByteMe</h1>
-        <p className="hero-tagline">
-          Your Intelligent Document Analysis Hub
-        </p>
-        <p className="hero-description">
-          Seamlessly connect insights across your PDFs. Upload, analyze, and discover hidden connections with AI-powered recommendations and insights.
-        </p>
-        <Link to="/upload" className="get-started-btn">
-          Get Started
-        </Link>
-      </section>
-
-      {/* Middle Section: How ByteMe Works - Step-by-step layout */}
-      <section className="hero-how-it-works-section">
-        <h2 className="how-it-works-title">How ByteMe Works</h2>
-        <p className="how-it-works-subtitle">
-          Experience the power of AI-driven PDF analysis through our intuitive workflow
-        </p>
-
-        <div className="how-it-works-grid">
-          {/* Step 1: Upload Your PDFs */}
-          <div className="how-it-works-step left-align" ref={step1Ref}>
-            <div className="step-icon-container">
-              <span className="step-number">Step 1</span>
-              <span className="step-icon">⬆️</span>
-            </div>
-            <h3>Upload Your PDFs</h3>
-            <p>Drag and drop bulk source documents and fresh working PDFs into our secure platform.</p>
-          </div>
-          <div className="step-image-container">
-            <div className="upload-mockup-box">
-              <div className="mockup-line-lg"></div>
-              <div className="mockup-line-md"></div>
-              <div className="mockup-line-sm"></div> {/* Added smaller line */}
-              <div className="mockup-upload-icon">⬆️</div>
-            </div>
-          </div>
-
-          {/* Step 2: Select Text */}
-          <div className="step-image-container right-align">
-            <div className="select-text-mockup-box">
-              <div className="mockup-line-lg"></div>
-              <div className="mockup-line-md"></div>
-              <div className="mockup-line-sm"></div> {/* Added smaller line */}
-              <div className="mockup-cursor-icon">👆</div>
-            </div>
-          </div>
-          <div className="how-it-works-step right-align" ref={step2Ref}>
-            <div className="step-icon-container">
-              <span className="step-number">Step 2</span>
-              <span className="step-icon">✍️</span>
-            </div>
-            <h3>Select Text</h3>
-            <p>Highlight any text from your fresh PDFs to analyze and find connections.</p>
-          </div>
-
-          {/* Step 3: Generate Insights & Recommendations */}
-          <div className="how-it-works-step left-align" ref={step3Ref}>
-            <div className="step-icon-container">
-              <span className="step-number">Step 3</span>
-              <span className="step-icon">💡</span>
-            </div>
-            <h3>Generate Insights & Recommendations</h3>
-            <p>Instantly get AI-powered recommendations from bulk PDFs and generate quick insights.</p>
-          </div>
-          <div className="step-image-container">
-            <div className="insights-mockup-box">
-              <div className="mockup-line-lg"></div>
-              <div className="mockup-line-md"></div>
-              <div className="mockup-line-sm"></div> {/* Added smaller line */}
-              <div className="mockup-chart-icon">📊</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Bottom Section: Other Functionalities */}
-      <section className="hero-features-section">
-        <h2 className="features-title">Beyond Recommendations</h2>
-        <div className="features-grid">
-          <div className="feature-card">
-            <h3><span className="feature-icon">✨</span> Generate Insights</h3>
-            <p>Extract key facts, "Did You Know?" snippets, and summaries from selected text instantly.</p>
-          </div>
-          <div className="feature-card">
-            <h3><span className="feature-icon">🎧</span> Podcast Mode</h3>
-            <p>Listen to your selected text with our integrated text-to-speech, perfect for on-the-go learning.</p>
-          </div>
-          <div className="feature-card">
-            <h3><span className="feature-icon">💾</span> Task History</h3>
-            <p>Your work is saved! Revisit previous analysis sessions and continue from where you left off.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* About Section: Part of Hero Page, scrolled to via Navbar */}
-      <section id="about-section" className="hero-about-section" ref={aboutSectionRef}>
-        <h2 className="about-title">About ByteMe</h2>
-        <p className="about-description">
-          ByteMe is a cutting-edge document intelligence tool developed as part of the **Adobe National Hackathon**. Our mission is to empower users with advanced AI capabilities to quickly understand, connect, and derive insights from vast amounts of PDF documents. We believe in making complex data analysis accessible and intuitive for everyone.
-        </p>
-      </section>
-
-      {/* Contact Section: Part of Hero Page, scrolled to via Navbar */}
-      <section id="contact-section" className="hero-contact-section" ref={contactSectionRef}>
-        <h2 className="contact-title">Get in Touch</h2>
-        <p className="contact-description">
-          Have questions, feedback, or just want to say hello? We'd love to hear from you!
-        </p>
-        <div className="contact-info">
-          <p><span className="contact-icon">📧</span> Email: <a href="mailto:support@byteme.com">support@byteme.com</a></p>
-          <p><span className="contact-icon">🔗</span> LinkedIn: <a href="https://www.linkedin.com/company/byteme" target="_blank" rel="noopener noreferrer">ByteMe LinkedIn</a></p>
-          <p><span className="contact-icon">🐦</span> Twitter: <a href="https://twitter.com/byteme_ai" target="_blank" rel="noopener noreferrer">@byteme_ai</a></p>
-        </div>
-      </section>
+ return (
+  <div className="hero-page-enhanced">
+   {/* Hero Section */}
+   <motion.section
+    className="hero-top-section"
+    initial="hidden"
+    animate="show"
+    variants={cardVariant}
+   >
+    <div className="hero-content">
+     <motion.h1 className="hero-title" variants={contentVariant}>
+      ByteMe
+     </motion.h1>
+     <motion.p className="hero-tagline" variants={contentVariant}>
+      Your Intelligent Document Analysis Hub
+     </motion.p>
+     <motion.p className="hero-description" variants={contentVariant}>
+      Upload, analyze, and discover hidden connections with AI-powered
+      recommendations and insights.
+     </motion.p>
+     <motion.div variants={contentVariant}>
+      <Link to="/upload" className="get-started-btn">
+       Get Started
+      </Link>
+     </motion.div>
     </div>
-  );
+    <motion.div className="hero-mockup-animation" variants={cardVariant}>
+     {/* Mockup animation layers */}
+     <div className="mockup-layer layer-1"></div>
+     <div className="mockup-layer layer-2"></div>
+     <div className="mockup-layer layer-3"></div>
+    </motion.div>
+   </motion.section>
+
+   {/* How it Works Section */}
+   <motion.section
+    className="hero-how-it-works-section"
+    initial="hidden"
+    whileInView="show"
+    viewport={{ once: true, amount: 0.3 }}
+    variants={cardVariant}
+   >
+    <motion.h2 className="how-it-works-title" variants={contentVariant}>
+     How It Works
+    </motion.h2>
+    <motion.p className="how-it-works-subtitle" variants={contentVariant}>
+     Experience the power of AI-driven PDF analysis.
+    </motion.p>
+
+    <div className="how-it-works-grid">
+     {[{
+       title: "Upload Documents",
+       desc: "Securely drag and drop your PDFs into our platform.",
+       icon: <FaCloudUploadAlt />,
+      }, {
+       title: "Select & Analyze",
+       desc: "Highlight text to get deep, AI-powered insights.",
+       icon: <FaMousePointer />,
+      }, {
+       title: "Generate Insights",
+       desc: "Instantly receive recommendations and summaries.",
+       icon: <FaLightbulb />,
+      }, ].map((item, idx) => (
+       <motion.div
+        key={idx}
+        className="how-it-works-step"
+        variants={cardVariant}
+       >
+        <motion.div
+         className="step-content-hover-wrapper"
+         style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+        >
+         <motion.div
+          className="step-icon-container"
+          variants={contentVariant}
+          whileHover={iconHover}
+         >
+          <span className="step-number">0{idx + 1}</span>
+          <div className="step-icon-wrapper">{item.icon}</div>
+         </motion.div>
+         <motion.h3 variants={contentVariant} whileHover={textHover}>
+          {item.title}
+         </motion.h3>
+         <motion.p variants={contentVariant} whileHover={textHover}>
+          {item.desc}
+         </motion.p>
+        </motion.div>
+       </motion.div>
+      ))}
+    </div>
+   </motion.section>
+
+   {/* Features Section */}
+   <motion.section
+    className="hero-features-section"
+    initial="hidden"
+    whileInView="show"
+    viewport={{ once: true, amount: 0.3 }}
+    variants={cardVariant}
+   >
+    <motion.h2 className="features-title" variants={contentVariant}>
+     Beyond Recommendations
+    </motion.h2>
+    <motion.p className="features-subtitle" variants={contentVariant}>
+     Discover ByteMe's full suite of powerful features.
+    </motion.p>
+    <div className="features-grid">
+     {[{
+       title: "Key Insight Generation",
+       desc: "Extract key facts, summaries, and topics instantly.",
+       icon: <FaMagic />,
+      }, {
+       title: "Podcast Mode",
+       desc: "Listen to documents with integrated text-to-speech.",
+       icon: <FaHeadphones />,
+      }, {
+       title: "Task History",
+       desc: "Revisit all previous analysis sessions anytime.",
+       icon: <FaHistory />,
+      }, ].map((f, i) => (
+       <motion.div
+        key={i}
+        className="feature-card"
+        variants={cardVariant}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+       >
+        <motion.div className="feature-icon-wrapper" variants={contentVariant}>
+         {f.icon}
+        </motion.div>
+        <motion.h3 variants={contentVariant}>{f.title}</motion.h3>
+        <motion.p variants={contentVariant}>{f.desc}</motion.p>
+       </motion.div>
+      ))}
+    </div>
+   </motion.section>
+
+   {/* About Section */}
+   <motion.section
+    id="about-section"
+    className="hero-about-section"
+    initial="hidden"
+    whileInView="show"
+    viewport={{ once: true, amount: 0.3 }}
+    variants={cardVariant}
+   >
+    <motion.h2 className="about-title" variants={contentVariant}>About ByteMe</motion.h2>
+    <motion.p className="about-description" variants={contentVariant}>
+     ByteMe is a cutting-edge document intelligence tool developed for the
+     Adobe National Hackathon. Our mission is to empower users with AI to
+     quickly understand and connect vast amounts of information from PDFs.
+    </motion.p>
+   </motion.section>
+
+   {/* Contact Section */}
+   <motion.section
+    id="contact-section"
+    className="hero-contact-section"
+    initial="hidden"
+    whileInView="show"
+    viewport={{ once: true, amount: 0.3 }}
+    variants={cardVariant}
+   >
+    <motion.h2 className="contact-title" variants={contentVariant}>Get in Touch</motion.h2>
+    <motion.p className="contact-description" variants={contentVariant}>
+     Have questions, feedback, or just want to say hello? We'd love to hear
+     from you!
+    </motion.p>
+    <motion.div className="contact-info" variants={contentVariant}>
+     <p>
+      <span className="contact-icon">📧</span> Email: harshilaminijs@gmail.com, aniketgaikwad2305@gmail.com
+     </p> 
+    </motion.div>
+   </motion.section>
+  </div>
+ );
 };
 
 export default Hero;
