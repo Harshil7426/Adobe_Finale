@@ -11,18 +11,17 @@ from pydantic import BaseModel
 from datetime import datetime
 import model
 import json
-import google.generativeai as genai
 import re
 import time
 import random
-import requests # Import for making HTTP requests to Azure TTS
-import base64   # Import for base64 encoding/decoding
-import io       # Import for handling byte streams
-import struct   # Import for packing binary data into WAV header
+import requests
+import base64
+import io
+import struct
 
 # Set the path to the 'task' directory relative to the project root.
-TASK_DIR = Path(__file__).parent.parent / "task"
-FRONTEND_BUILD_DIR = Path(__file__).parent.parent / "frontend/dist"
+TASK_DIR = Path(os.getenv("TASK_DIR", Path(__file__).parent.parent / "task"))
+FRONTEND_BUILD_DIR = Path(os.getenv("FRONTEND_BUILD_DIR", Path(__file__).parent.parent / "frontend/dist"))
 
 TASK_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -31,7 +30,9 @@ app = FastAPI()
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "http://localhost:5178"
+    "http://localhost:5178",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -58,110 +59,48 @@ class PodcastRequest(BaseModel):
 
 class GenerateAudioRequest(BaseModel):
     script: str
-    voice_name: str = "en-US-JennyNeural" # Default voice for single speaker
+    voice_name: str = "en-US-JennyNeural"
 
-# Configure the Gemini API with your API key
-# ⚠️ WARNING: This is a security risk. Do not commit this file to a public repository.
-GEMINI_API_KEY = "AIzaSyBD0fy-LU05-wJYJxLpHuYNFicu5P1PslU" # Your Gemini API Key
+# --- LLM and TTS Configuration (now primarily via environment variables) ---
+LLM_PROVIDER = os.getenv("LLM_PROVIDER")
+if not LLM_PROVIDER:
+    print("Warning: LLM_PROVIDER environment variable not set. LLM functionality may be limited.")
 
-try:
-    genai.configure(api_key=GEMINI_API_KEY)
-    GEMINI_MODEL = genai.GenerativeModel('gemini-1.5-flash-latest')
-except Exception as e:
-    print(f"Error configuring Gemini API: {e}")
-    GEMINI_MODEL = None
+TTS_PROVIDER = os.getenv("TTS_PROVIDER")
+AZURE_TTS_KEY = os.getenv("AZURE_TTS_KEY")
+AZURE_TTS_REGION = os.getenv("AZURE_TTS_REGION", "centralindia")
+AZURE_TTS_ENDPOINT_ENV = os.getenv("AZURE_TTS_ENDPOINT")
 
-# Azure TTS Configuration
-AZURE_TTS_KEY = "G7NSjbrSDC5hZPPogsStCDyKRltNAmwRJYykRVZjaQeTRg2hg12BJQQJ99BHACGhslBXJ3w3AAAYACOGtUu0"
-AZURE_TTS_REGION = "centralindia"
-AZURE_TTS_ENDPOINT = f"https://{AZURE_TTS_REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
-AZURE_TTS_SPEECH_ENDPOINT = f"https://{AZURE_TTS_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
-
-def refine_with_gemini(text: str, query: str) -> Dict:
-    """
-    Guarantees a reason is returned for a document's relevance,
-    with a fallback to a simple reason if the Gemini API fails.
-    """
-    shortened_section = text[:200].strip() + "..."
-    if len(text) <= 200:
-        shortened_section = text.strip()
-
-    fallback_reason = "This section is relevant as it contains information related to the query's topic."
-
-    if not GEMINI_MODEL:
-        return {
-            "section": shortened_section,
-            "reason": f"Gemini API is not available. {fallback_reason}"
-        }
-
-    reason_prompt = f"""
-    You are an AI assistant that provides a specific reason for a document's relevance to a query.
-
-    The original query is: "{query}"
-
-    The relevant document section is: "{text}"
-
-    Please provide a one-sentence, specific reason why this document section is relevant to the query. For example:
-    "This section is relevant because it discusses the benefits of using an ensemble model, which is a key concept in the query."
-
-    The reason must be unique and different for every recommendation.
-    """
-
-    try:
-        response = GEMINI_MODEL.generate_content(reason_prompt)
-        
-        if hasattr(response, 'text') and response.text:
-            curated_reason = response.text.strip()
-            return {
-                "section": shortened_section,
-                "reason": curated_reason
-            }
-        else:
-            print(f"Gemini API returned no text for the query: '{query}'.")
-            return {
-                "section": shortened_section,
-                "reason": f"Gemini returned an empty response. {fallback_reason}"
-            }
-            
-    except Exception as e:
-        error_message = str(e)
-        if "RESOURCE_EXHAUSTED" in error_message or "429" in error_message:
-            print(f"API quota exceeded. Falling back to generic reason.")
-            return {
-                "section": shortened_section,
-                "reason": fallback_reason
-            }
-        else:
-            print(f"An unknown API error occurred: {e}")
-            return {
-                "section": shortened_section,
-                "reason": f"An unknown API error occurred. {fallback_reason}"
-            }
+AZURE_TTS_TOKEN_ENDPOINT = None
+AZURE_TTS_SPEECH_ENDPOINT = None
+if TTS_PROVIDER == "azure":
+    if not AZURE_TTS_KEY:
+        print("Error: AZURE_TTS_KEY not found for Azure TTS. TTS functionality will be disabled.")
+    else:
+        AZURE_TTS_TOKEN_ENDPOINT = AZURE_TTS_ENDPOINT_ENV if AZURE_TTS_ENDPOINT_ENV else f"https://{AZURE_TTS_REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
+        AZURE_TTS_SPEECH_ENDPOINT = f"https://{AZURE_TTS_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
+else:
+    print(f"TTS_PROVIDER is not 'azure' (current: {TTS_PROVIDER}). Azure TTS will be disabled.")
 
 
-# Helper function to convert raw PCM audio to WAV format
 def pcm_to_wav(pcm_data: bytes, sample_rate: int = 16000, channels: int = 1, bit_depth: int = 16) -> bytes:
     """Converts raw PCM audio data to WAV format."""
     byte_depth = bit_depth // 8
     data_size = len(pcm_data)
     
-    # WAV header definition
-    # RIFF chunk
     wav_header = b'RIFF'
-    wav_header += struct.pack('<I', 36 + data_size)  # ChunkSize
+    wav_header += struct.pack('<I', 36 + data_size)
     wav_header += b'WAVE'
     
-    # fmt chunk
     wav_header += b'fmt '
-    wav_header += struct.pack('<I', 16)  # Subchunk1Size (16 for PCM)
-    wav_header += struct.pack('<H', 1)   # AudioFormat (1 for PCM)
+    wav_header += struct.pack('<I', 16)
+    wav_header += struct.pack('<H', 1)
     wav_header += struct.pack('<H', channels)
     wav_header += struct.pack('<I', sample_rate)
-    wav_header += struct.pack('<I', sample_rate * channels * byte_depth)  # ByteRate
-    wav_header += struct.pack('<H', channels * byte_depth)  # BlockAlign
+    wav_header += struct.pack('<I', sample_rate * channels * byte_depth)
+    wav_header += struct.pack('<H', channels * byte_depth)
     wav_header += struct.pack('<H', bit_depth)
     
-    # data chunk
     wav_header += b'data'
     wav_header += struct.pack('<I', data_size)
     wav_header += pcm_data
@@ -205,10 +144,8 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         (task_path / 'status.txt').write_text('processing')
         (task_path / 'created_at.txt').write_text(datetime.now().isoformat())
         
-        # ⭐ FIX: Call model.embed_documents to process and embed PDFs into ChromaDB
         model.embed_documents(sanitized_task_name, temp_bulk_dir, task_path)
         
-        # After embedding, move files from temp_bulk to bulk
         for file in os.listdir(temp_bulk_dir):
             shutil.move(temp_bulk_dir / file, bulk_dir / file)
         shutil.rmtree(temp_bulk_dir)
@@ -227,20 +164,31 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
     try:
         task_path = TASK_DIR / request_body.task_name
         
-        # This line performs the semantic search based on the query text
-        # and returns up to 5 relevant recommendations from the ChromaDB.
         raw_recommendations = model.get_recommendations(request_body.task_name, request_body.query_text, task_path)
         
         final_recommendations = []
         for rec in raw_recommendations:
-            # Use the LLM to refine the section and reason
-            refined_data = refine_with_gemini(rec['section'], request_body.query_text)
-            
+            # Use model.py's get_llm_response for refinement
+            messages = [
+                {"role": "user", "content": f"""
+                You are an AI assistant that provides a specific reason for a document's relevance to a query.
+                The original query is: "{request_body.query_text}"
+                The relevant document section is: "{rec['section']}"
+                Please provide a one-sentence, specific reason why this document section is relevant to the query.
+                The reason must be unique and different for every recommendation.
+                """}
+            ]
+            try:
+                curated_reason = model.get_llm_response(messages)
+            except Exception as e:
+                print(f"Error calling LLM for refinement: {e}. Falling back to generic reason.")
+                curated_reason = "This section is relevant as it contains information related to the query's topic."
+
             final_recommendations.append({
                 "pdf_name": rec['pdf_name'],
                 "page_number": rec['page_number'],
-                "section": refined_data['section'],
-                "reason": refined_data['reason']
+                "section": rec['section'],
+                "reason": curated_reason
             })
 
         recommendations_path = task_path / "recommendations.json"
@@ -249,19 +197,19 @@ async def get_recommendations_endpoint(request_body: RecommendationRequest):
 
         return JSONResponse(content={"recommendations": final_recommendations})
     except Exception as e:
-        print(f"Error generating recommendations: {e}") # Added more specific logging
+        print(f"Error generating recommendations: {e}")
         raise HTTPException(status_code=500, detail=f"Recommendation retrieval failed: {str(e)}")
 
 
 @app.post("/get_insights")
 async def get_insights_endpoint(request_body: InsightsRequest):
     """
-    Generates insights (facts, did-you-knows) based on selected text and recommendations using Gemini API.
+    Generates insights (facts, did-you-knows) based on selected text and recommendations using LLM.
     Saves the insights to insights.json.
     """
     try:
-        if not GEMINI_MODEL:
-            return JSONResponse(content={"insights": {"facts": ["API not available."], "didYouKnows": []}}, status_code=503)
+        if not LLM_PROVIDER:
+            return JSONResponse(content={"insights": {"facts": ["LLM not configured."], "didYouKnows": []}}, status_code=503)
 
         insights_prompt = f"""
         Based on the user's selected text and the provided recommendations, generate interesting insights, facts, and "Did You Know?" points.
@@ -276,28 +224,22 @@ async def get_insights_endpoint(request_body: InsightsRequest):
             "didYouKnows": ["Did you know 1?", "Did you know 2?"]
         }}
         """
-        response = GEMINI_MODEL.generate_content(insights_prompt)
-        raw_text_response = response.text
+        messages = [{"role": "user", "content": insights_prompt}]
+        raw_text_response = model.get_llm_response(messages)
         
-        # Use regex to extract only the JSON part from the response text
-        # This handles cases where the model might wrap JSON in markdown fences or add extra characters.
         json_match = re.search(r"```json\s*(\{.*\})\s*```", raw_text_response, re.DOTALL)
         
-        insights_data = {"facts": [], "didYouKnows": []} # Default empty structure
+        insights_data = {"facts": [], "didYouKnows": []}
         
         if json_match:
-            json_string = json_match.group(1) # Extract the content inside the first group
+            json_string = json_match.group(1)
             try:
                 insights_data = json.loads(json_string)
-                # Ensure the structure matches what the frontend expects
                 if not isinstance(insights_data, dict) or "facts" not in insights_data or "didYouKnows" not in insights_data:
-                    # Fallback if the JSON structure is unexpected, try to extract text as a single fact
-                    insights_data = {"facts": [json_string], "didYouKnows": []}
+                    insights_data = {"facts": [raw_text_response], "didYouKnows": []}
             except json.JSONDecodeError:
-                # If the extracted string isn't valid JSON, treat the whole response as a single fact
-                insights_data = {"facts": [raw_text_response], "didYouKnows": []} # Use raw_text_response here as fallback
+                insights_data = {"facts": [raw_text_response], "didYouKnows": []}
         else:
-            # If no JSON block is found, try to parse the entire response, or fallback to raw text
             try:
                 insights_data = json.loads(raw_text_response)
                 if not isinstance(insights_data, dict) or "facts" not in insights_data or "didYouKnows" not in insights_data:
@@ -306,7 +248,6 @@ async def get_insights_endpoint(request_body: InsightsRequest):
                 insights_data = {"facts": [raw_text_response], "didYouKnows": []}
 
 
-        # Save the insights to insights.json
         task_path = TASK_DIR / request_body.task_name
         task_path.mkdir(parents=True, exist_ok=True)
         insights_path = task_path / "insights.json"
@@ -323,12 +264,12 @@ async def get_insights_endpoint(request_body: InsightsRequest):
 @app.post("/get_podcast_script")
 async def get_podcast_script_endpoint(request_body: PodcastRequest):
     """
-    Generates a single-person podcast script based on selected text, recommendations, and insights using Gemini API.
+    Generates a single-person podcast script based on selected text, recommendations, and insights using LLM.
     Saves the podcast script to podcast.json.
     """
     try:
-        if not GEMINI_MODEL:
-            return JSONResponse(content={"script": "Podcast generation failed. API not available."}, status_code=503)
+        if not LLM_PROVIDER:
+            return JSONResponse(content={"script": "Podcast generation failed. LLM not configured."}, status_code=503)
         
         podcast_prompt = f"""
         Create a concise, engaging, single-person podcast script (around 1-2 minutes).
@@ -341,15 +282,14 @@ async def get_podcast_script_endpoint(request_body: PodcastRequest):
         Recommendations: {json.dumps(request_body.recommendations, indent=2)}
         Insights: {json.dumps(request_body.insights, indent=2)}
         """
-        response = GEMINI_MODEL.generate_content(podcast_prompt)
-        podcast_script = response.text # Get the raw text from the model
+        messages = [{"role": "user", "content": podcast_prompt}]
+        podcast_script = model.get_llm_response(messages)
 
-        # Save the podcast script to podcast.json
         task_path = TASK_DIR / request_body.task_name
         task_path.mkdir(parents=True, exist_ok=True)
         podcast_path = task_path / "podcast.json"
         with open(podcast_path, "w") as f:
-            f.write(podcast_script) # Save the plain text script
+            f.write(podcast_script)
 
         return JSONResponse(content={"script": podcast_script})
 
@@ -362,26 +302,23 @@ async def generate_podcast_audio_endpoint(request_body: GenerateAudioRequest):
     """
     Converts a given script to audio using Azure TTS and returns base64 encoded WAV.
     """
-    if not AZURE_TTS_KEY:
-        raise HTTPException(status_code=500, detail="Azure TTS API key not configured.")
+    if not AZURE_TTS_KEY or not AZURE_TTS_TOKEN_ENDPOINT or not AZURE_TTS_SPEECH_ENDPOINT:
+        raise HTTPException(status_code=500, detail="Azure TTS API configuration missing or incomplete.")
 
     try:
-        # Step 1: Get an authentication token
         token_headers = {
             'Ocp-Apim-Subscription-Key': AZURE_TTS_KEY
         }
-        token_response = requests.post(AZURE_TTS_ENDPOINT, headers=token_headers)
-        token_response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+        token_response = requests.post(AZURE_TTS_TOKEN_ENDPOINT, headers=token_headers)
+        token_response.raise_for_status()
         access_token = token_response.text
 
-        # Step 2: Synthesize speech
         speech_headers = {
             'Authorization': 'Bearer ' + access_token,
             'Content-Type': 'application/ssml+xml',
-            'X-Microsoft-OutputFormat': 'riff-16khz-16bit-mono-pcm', # Raw PCM output
+            'X-Microsoft-OutputFormat': 'riff-16khz-16bit-mono-pcm',
             'User-Agent': 'FastAPIApp'
         }
-        # SSML for desired voice (e.g., en-US-JennyNeural)
         ssml_body = f"""
         <speak version='1.0' xml:lang='en-US'>
             <voice name='{request_body.voice_name}'>
@@ -395,12 +332,10 @@ async def generate_podcast_audio_endpoint(request_body: GenerateAudioRequest):
             headers=speech_headers,
             data=ssml_body.encode('utf-8')
         )
-        speech_response.raise_for_status() # Raise HTTPError for bad responses
+        speech_response.raise_for_status()
 
-        # Convert raw PCM data to WAV
         wav_data = pcm_to_wav(speech_response.content, sample_rate=16000, channels=1, bit_depth=16)
         
-        # Base64 encode the WAV data
         audio_base64 = base64.b64encode(wav_data).decode('utf-8')
 
         return JSONResponse(content={"audio_base64": audio_base64, "mime_type": "audio/wav"})
@@ -461,4 +396,4 @@ async def serve_frontend(full_path: str):
     return FileResponse(FRONTEND_BUILD_DIR / "index.html")
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

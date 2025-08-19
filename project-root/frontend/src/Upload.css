@@ -24,7 +24,7 @@ html, body {
   width: 100%;
   max-width: 85%;
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 40px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   padding: 40px;
   margin-top: 25px;
@@ -34,11 +34,20 @@ html, body {
 .main-title {
   font-size: 2.8em;
   font-weight: 700;
-  color: #2d3748;
   text-align: center;
   margin-bottom: 8px;
+  /* Apply the gradient and clip it to the text */
+  background: linear-gradient(
+    90deg,
+    #5e5eff 0%,
+    #7a52ff 30%,
+    #b24dff 50%,
+    #ff4d99 80%,
+    #ff994d 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
-
 .subtitle {
   font-size: 1.15em;
   color: #718096;
@@ -49,12 +58,16 @@ html, body {
 .upload-section {
   padding: 35px;
   background: #fdfefe;
-  border-radius: 15px;
+  border-radius: 25px;
   border: 1px solid #e0e6ee;
   margin-bottom: 50px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
-
+.upload-section:hover{
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15); /* More pronounced shadow */
+  transform: translateY(-4px) scale(1.01); /* Pop-out effect */
+}
 .upload-box-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -63,9 +76,10 @@ html, body {
 }
 
 .upload-box {
+  
   background: #ffffff;
   border: 1px solid #d8e0e9;
-  border-radius: 20px;
+  border-radius: 30px;
   padding: 30px;
   transition: box-shadow 0.3s ease, transform 0.2s ease;
   display: flex;
@@ -77,15 +91,15 @@ html, body {
 }
 
 .upload-box:hover {
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-  transform: translateY(-5px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15); /* More pronounced shadow */
+  transform: translateY(-8px) scale(1.02); /* Pop-out effect */
 }
-
 .box-title {
   font-size: 1.3em;
   font-weight: 600;
   margin-bottom: 8px;
-  color: #2d3748;
+  color: #35617e;
+  font-weight: 800;
 }
 
 .box-description {
@@ -101,7 +115,7 @@ html, body {
   justify-content: center;
   height: 180px;
   border: 2px dashed #aeb8c4;
-  border-radius: 12px;
+  border-radius: 18px;
   cursor: pointer;
   background: #fbfdff;
   transition: background-color 0.3s ease, border-color 0.3s ease;
@@ -113,11 +127,11 @@ html, body {
 
 .drop-zone:hover {
   background-color: #eef7ff;
-  border-color: #63b3ed;
+  border-color: #256898;
 }
 
 .upload-icon {
-  color: #6a798f;
+  color: #556d92;
   margin-bottom: 12px;
   animation: bounce 2s infinite;
 }
@@ -213,21 +227,35 @@ html, body {
 }
 
 .create-task-btn {
-  background-color: #4299e1;
+  background-color: #235781;
   color: #fff;
 }
 
 .create-task-btn:hover:not(:disabled) {
-  background-color: #3182ce;
+  background-color: #4a7399;
 }
 
 .start-analysis-btn {
-  background-color: #10b981;
-  color: #fff;
+  background: linear-gradient(
+    90deg,
+    #9090f1 0%,
+    #8d6ef1 30%,
+    #ae66e4 50%,
+    #e76da2 80%,
+    #eca671 100%
+  );
+  color: white;
 }
 
 .start-analysis-btn:hover:not(:disabled) {
-  background-color: #059669;
+  background: linear-gradient(
+    90deg,
+    #5e5eff 0%,
+    #7a52ff 30%,
+    #b24dff 50%,
+    #ff4d99 80%,
+    #ff994d 100%
+  );
 }
 
 .spinner {
@@ -244,7 +272,7 @@ html, body {
   padding-top: 70px;
   padding-bottom: 70px;
   background: linear-gradient(145deg, #fdfefe 0%, #f4f6f8 50%, #eef1f4 100%);
-  border-radius: 25px;
+  border-radius: 35px;
   border: 1px solid rgba(230, 238, 245, 0.6);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
   backdrop-filter: blur(10px) saturate(150%);
@@ -303,8 +331,8 @@ html, body {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0 30px; /* Increased horizontal padding for scroll area */
-  overflow: visible;
+  padding: 0 45px; /* Increase padding for better scroll button placement */
+  overflow: hidden;
   margin-top: 20px;
 }
 
@@ -318,6 +346,10 @@ html, body {
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding-bottom: 20px;
+  width: 100%; /* Ensure it takes up full width */
+  padding: 30px;
+  background: linear-gradient(135deg, #ecf3f8, #ebeff0);
+  border-radius: 24px;
 }
 .task-list::-webkit-scrollbar {
   display: none;
@@ -350,45 +382,47 @@ html, body {
   color: #3182ce;
 }
 
-.scroll-btn.left { left: 0; } /* Adjusted to be relative to the new padding */
-.scroll-btn.right { right: 0; } /* Adjusted to be relative to the new padding */
+.scroll-btn.left { left: 10px; }
+.scroll-btn.right { right: 10px; }
 
 
 .task-card {
-  flex: 0 0 350px;
+  flex: 0 0 320px; /* Adjusted fixed width for better fit on most screens */
+  min-width: 320px;
+  max-width: 360px; /* Added max-width for flexibility */
   scroll-snap-align: start;
   background: #ffffff;
   border: 1px solid rgba(235, 240, 245, 0.8);
   backdrop-filter: blur(6px) saturate(130%);
-  border-radius: 25px;
+  border-radius: 30px;
   padding: 25px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out, outline 0.3s ease-in-out;
   display: flex;
   flex-direction: column;
   gap: 15px;
   min-height: 380px;
-  max-height: 500px;
+  max-height: 450px;
   overflow: hidden;
   z-index: 1;
-  position: relative; /* needed for outline effect */
+  position: relative;
 }
 
 .task-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 18px 35px rgba(99, 102, 241, 0.2);
-  outline: 2px solid #6366f1; /* instead of border change */
-  outline-offset: 0; /* no shift */
+  transform: translateY(-6px);
+  box-shadow: 0 12px 25px rgba(99, 102, 241, 0.25);
+  outline: 2px solid #a3bbe3;
+  outline-offset: 0;
   z-index: 2;
 }
 
 .task-card.active {
-  outline: 3px solid #4299e1; /* replaces border-color + glow */
+  outline: 3px solid #cedbe5;
   outline-offset: 0;
-  box-shadow: 0 0 25px rgba(66, 153, 225, 0.35);
-  background: linear-gradient(135deg, #e0f2fe, #c5f1fd);
-  transform: scale(1.01);
+  box-shadow: 0 0 30px rgba(66, 153, 225, 0.45);
+  background: linear-gradient(135deg, #ecf3f8, #d5e8ed);
+  transform: scale(1.02);
   z-index: 3;
 }
 
@@ -439,12 +473,13 @@ html, body {
 .card-back{
   background-color: #fcfdfe;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: 22px;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.03);
+  margin-top: -15px;
 }
 
 .card-file-list {

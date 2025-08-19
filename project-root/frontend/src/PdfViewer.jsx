@@ -46,8 +46,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [progress, setProgress] = useState(0);
   const animationFrameRef = useRef(null);
-  const playbackStartTimeRef = useRef(0); // New ref to store the start time of playback
-  const pausedTimeRef = useRef(0); // New ref to store the paused time
+  const playbackStartTimeRef = useRef(0);
+  const pausedTimeRef = useRef(0);
 
   console.log("Current taskName:", taskName);
 
@@ -158,7 +158,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         query_text: selectedText,
       };
 
-      const recResponse = await fetch("http://127.0.0.1:8000/get_recommendations", {
+      const recResponse = await fetch("/get_recommendations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -177,7 +177,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         recommendations: recommendations,
         task_name: taskName
       };
-      const insightResponse = await fetch("http://127.0.0.1:8000/get_insights", {
+      const insightResponse = await fetch("/get_insights", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(insightPayload),
@@ -196,7 +196,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         task_name: taskName
       };
 
-      const podcastResponse = await fetch("http://127.0.0.1:8000/get_podcast_script", {
+      const podcastResponse = await fetch("/get_podcast_script", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(podcastPayload),
@@ -219,7 +219,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         voice_name: "en-US-JennyNeural"
       };
 
-      const audioResponse = await fetch("http://127.0.0.1:8000/generate_podcast_audio", {
+      const audioResponse = await fetch("/generate_podcast_audio", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(audioPayload),
@@ -242,12 +242,12 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   };
 
   const handleOpenRecommendation = (pdfName, pageNumber, sectionContent) => {
-    const recommendedUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
+    const recommendedUrl = `/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: recommendedUrl, name: pdfName, pageNumber });
   };
 
   const handleBulkPdfClick = (pdfName) => {
-    const bulkUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
+    const bulkUrl = `/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: bulkUrl, name: pdfName, pageNumber: 1 });
   };
 
@@ -296,7 +296,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    // Stop previous playback if any, but don't reset pausedTimeRef
     if (sourceNodeRef.current) {
       sourceNodeRef.current.stop();
       sourceNodeRef.current.disconnect();
@@ -309,9 +308,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       source.buffer = audioBuffer;
       source.connect(audioContextRef.current.destination);
       
-      // Start from pausedTimeRef.current if available, otherwise from 0
-      source.start(0, pausedTimeRef.current); 
-      playbackStartTimeRef.current = audioContextRef.current.currentTime; // Record current time as playback start
+      source.start(0, pausedTimeRef.current);
+      playbackStartTimeRef.current = audioContextRef.current.currentTime;
       
       setIsPlaying(true);
       sourceNodeRef.current = source;
@@ -322,7 +320,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       source.onended = () => {
         setIsPlaying(false);
         setProgress(0);
-        pausedTimeRef.current = 0; // Reset paused time when audio ends
+        pausedTimeRef.current = 0;
         sourceNodeRef.current = null;
         cancelAnimationFrame(animationFrameRef.current);
       };
@@ -331,7 +329,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       setMessage("Error playing audio.");
       setIsPlaying(false);
       setProgress(0);
-      pausedTimeRef.current = 0; // Reset on error
+      pausedTimeRef.current = 0;
     }
   };
 
@@ -342,7 +340,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       sourceNodeRef.current = null;
     }
     setIsPlaying(false);
-    // When pausing, store the current time
     if (audioContextRef.current) {
       pausedTimeRef.current += audioContextRef.current.currentTime - playbackStartTimeRef.current;
     }
@@ -369,7 +366,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     const duration = sourceNodeRef.current.buffer.duration;
     const seekTime = duration * clickRatio;
 
-    // Stop current playback
     if (sourceNodeRef.current) {
       sourceNodeRef.current.stop();
       sourceNodeRef.current.disconnect();
@@ -377,10 +373,8 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       cancelAnimationFrame(animationFrameRef.current);
     }
 
-    // Update pausedTimeRef to the new seekTime
     pausedTimeRef.current = seekTime;
     
-    // Play from the new seek time
     playAudio();
   };
 
