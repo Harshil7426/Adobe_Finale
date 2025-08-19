@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&display=swap');
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 3rem; /* Increased horizontal padding */
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  margin: 1.5rem auto;
+  max-width: none;
+  width: 60%;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.15);
+  position: sticky;
+  top: 20px;
+  z-index: 1000;
+}
+
+.navbar-brand a {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #2d3748;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.navbar-brand a:hover {
+  color: #4299e1;
+}
+
+.navbar-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 3rem; /* Increased gap between links */
+}
+
+.navbar-links li a {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.25rem;
+  color: #4a5568;
+  text-decoration: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+}
+
+.navbar-links li a:hover,
+.navbar-links li a.active {
+  background-color: rgba(66, 153, 225, 0.15);
+  color: #4299e1;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 1024px) {
+  .navbar {
+    padding: 1rem 2.5rem; /* Adjusted padding for medium screens */
+    max-width: 95%;
+  }
+  .navbar-links {
+    gap: 2rem; /* Adjusted gap for medium screens */
+  }
+  .navbar-brand a {
+    font-size: 2rem;
+  }
+  .navbar-links li a {
+    font-size: 1.15rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    padding: 1rem;
+    margin: 1rem;
+    top: 10px;
+    border-radius: 15px;
+  }
+
+  .navbar-links {
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-top: 1rem;
+    width: 100%;
+    text-align: center;
+  }
+
+  .navbar-links li {
+    width: 100%;
+  }
+
+  .navbar-links li a {
+    display: block;
+    padding: 0.8rem;
+  }
+  .navbar-brand a {
+    font-size: 1.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar {
+    padding: 0.8rem;
+    margin: 0.8rem;
+  }
+  .navbar-brand a {
+    font-size: 1.6rem;
+  }
+  .navbar-links li a {
+    font-size: 1.05rem;
+    padding: 0.6rem;
+  }
+}

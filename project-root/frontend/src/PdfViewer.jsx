@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FaChevronLeft, FaChevronRight, FaFilePdf } from "react-icons/fa"; // Import FaChevronRight
 import "./Pdfviewer.css"; // Ensure this CSS file exists and is linked
-
+import './Upload.css'; 
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
 const TRUNCATE_LIMIT = 22; // Set a character limit for truncation
 

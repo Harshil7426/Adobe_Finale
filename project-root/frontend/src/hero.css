@@ -1,0 +1,485 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&display=swap');
+
+.hero-page {
+  width: 90%; /* Use 90% of the viewport width */
+  max-width: 1400px; /* Increased max-width for larger screens */
+  margin: 0 auto;
+  padding: 40px 20px;
+  box-sizing: border-box;
+  color: #334155;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Top Section */
+.hero-top-section {
+  text-align: center;
+  padding: 80px 20px 100px;
+  background: linear-gradient(180deg, #fdfefe 0%, #f0f4f8 100%);
+  border-radius: 25px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+  margin-bottom: 80px;
+}
+
+.hero-title {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 5.5em;
+  font-weight: 800;
+  margin-bottom: 15px;
+  background: linear-gradient(90deg, #4f46e5, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+  letter-spacing: -2px;
+}
+
+.hero-tagline {
+  font-size: 1.8em;
+  color: #4a5568;
+  margin-bottom: 25px;
+  font-weight: 500;
+}
+
+.hero-description {
+  font-size: 1.15em;
+  color: #64748b;
+  max-width: 800px;
+  margin: 0 auto 40px;
+  line-height: 1.6;
+}
+
+.get-started-btn {
+  display: inline-block;
+  padding: 18px 40px;
+  background-color: #4299e1;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 30px;
+  font-size: 1.2em;
+  font-weight: 600;
+  transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+  box-shadow: 0 8px 20px rgba(66, 153, 225, 0.3);
+}
+
+.get-started-btn:hover {
+  background-color: #3182ce;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 25px rgba(66, 153, 225, 0.4);
+}
+
+/* Middle Section: How ByteMe Works */
+.hero-how-it-works-section {
+  text-align: center;
+  padding: 80px 20px;
+  margin-bottom: 80px;
+  background-color: #f8faff;
+  border-radius: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.how-it-works-title {
+  font-size: 2.8em;
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-weight: 700;
+}
+
+.how-it-works-subtitle {
+  font-size: 1.2em;
+  color: #718096;
+  margin-bottom: 60px;
+}
+
+.how-it-works-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns for text and image */
+  gap: 80px 40px; /* Vertical and horizontal gap */
+  align-items: center;
+  max-width: 1100px; /* Adjusted max-width for the grid itself */
+  margin: 0 auto;
+}
+
+.how-it-works-step {
+  text-align: left;
+  padding: 20px;
+}
+
+.how-it-works-step.left-align {
+  grid-column: 1 / 2;
+}
+
+.how-it-works-step.right-align {
+  grid-column: 2 / 3;
+}
+
+.step-icon-container {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.step-number {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #4299e1;
+  background-color: #e0f2fe;
+  padding: 8px 15px;
+  border-radius: 20px;
+}
+
+.step-icon {
+  font-size: 2.5em;
+  color: #6366f1;
+}
+
+.how-it-works-step h3 {
+  font-size: 1.8em;
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-weight: 700;
+}
+
+.how-it-works-step p {
+  font-size: 1.05em;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.step-image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 250px; /* Ensure consistent height for image containers */
+}
+
+/* Mockup Box Base Styles (Glassmorphism) */
+.upload-mockup-box,
+.select-text-mockup-box,
+.insights-mockup-box {
+  width: 100%;
+  max-width: 450px; /* Slightly wider mockup boxes */
+  height: 280px; /* Slightly taller mockup boxes */
+  background: rgba(255, 255, 255, 0.5); /* More opaque white */
+  backdrop-filter: blur(12px); /* Increased blur */
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4); /* Slightly stronger border */
+  border-radius: 20px; /* More rounded */
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15); /* Stronger shadow */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 30px; /* Increased padding */
+  box-sizing: border-box;
+}
+
+/* Placeholder lines for mockup boxes */
+.mockup-line-lg {
+  width: 85%; /* Slightly wider lines */
+  height: 18px; /* Thicker lines */
+  background-color: rgba(255, 255, 255, 0.8); /* More opaque */
+  border-radius: 8px; /* More rounded */
+  margin-bottom: 18px; /* More spacing */
+}
+
+.mockup-line-md {
+  width: 65%; /* Slightly wider lines */
+  height: 12px; /* Thicker lines */
+  background-color: rgba(255, 255, 255, 0.7); /* More opaque */
+  border-radius: 6px;
+  margin-bottom: 28px; /* More spacing */
+}
+
+.mockup-line-sm { /* Added smaller line for more detail */
+  width: 40%;
+  height: 8px;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+/* Specific mockup box content */
+.upload-mockup-box .mockup-upload-icon,
+.select-text-mockup-box .mockup-cursor-icon,
+.insights-mockup-box .mockup-chart-icon {
+  font-size: 4em; /* Larger icons */
+  color: #4299e1;
+  opacity: 0.9; /* More opaque */
+  margin-top: 15px; /* Space from lines */
+}
+
+/* Ensure step 2 image is on the right column */
+.how-it-works-grid > .step-image-container:nth-child(3) {
+  grid-column: 2 / 3;
+}
+/* Ensure step 2 text is on the left column */
+.how-it-works-grid > .how-it-works-step:nth-child(4) {
+  grid-column: 1 / 2;
+}
+
+
+/* Bottom Section: Other Functionalities */
+.hero-features-section {
+  padding: 80px 20px;
+  background-color: #fdfefe;
+  border-radius: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  margin-bottom: 80px;
+  text-align: center;
+}
+
+.features-title {
+  font-size: 2.5em;
+  color: #2d3748;
+  margin-bottom: 50px;
+  font-weight: 700;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e6ee;
+  border-radius: 20px;
+  padding: 30px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+  text-align: left;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.feature-card h3 {
+  font-size: 1.4em;
+  color: #4299e1;
+  margin-bottom: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.feature-card p {
+  font-size: 1em;
+  color: #5a677d;
+  line-height: 1.6;
+}
+
+.feature-icon {
+  font-size: 1.5em;
+  color: #6366f1;
+}
+
+/* About Section */
+.hero-about-section {
+  padding: 80px 20px;
+  background-color: #eef3f8;
+  border-radius: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  margin-bottom: 80px;
+  text-align: center;
+}
+
+.about-title {
+  font-size: 2.5em;
+  color: #2d3748;
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+.about-description {
+  font-size: 1.1em;
+  color: #5a677d;
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+
+/* Contact Section */
+.hero-contact-section {
+  padding: 80px 20px;
+  background-color: #fdfefe;
+  border-radius: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  text-align: center;
+}
+
+.contact-title {
+  font-size: 2.5em;
+  color: #2d3748;
+  margin-bottom: 30px;
+  font-weight: 700;
+}
+
+.contact-description {
+  font-size: 1.1em;
+  color: #5a677d;
+  max-width: 800px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+
+.contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.contact-info p {
+  font-size: 1.05em;
+  color: #5a677d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.contact-info a {
+  color: #4299e1;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.contact-info a:hover {
+  color: #3182ce;
+  text-decoration: underline;
+}
+
+.contact-icon {
+  color: #6366f1;
+  font-size: 1.2em;
+}
+
+@media (max-width: 1024px) {
+  .hero-title {
+    font-size: 4.5em;
+  }
+  .hero-tagline {
+    font-size: 1.6em;
+  }
+  .hero-description {
+    font-size: 1.05em;
+  }
+  .how-it-works-title, .features-title, .about-title, .contact-title {
+    font-size: 2.2em;
+  }
+  .how-it-works-step h3 {
+    font-size: 1.6em;
+  }
+  .how-it-works-step p {
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-top-section, .hero-how-it-works-section, .hero-features-section, .hero-about-section, .hero-contact-section {
+    padding: 60px 15px;
+    margin-bottom: 60px;
+  }
+  .hero-title {
+    font-size: 3.5em;
+  }
+  .hero-tagline {
+    font-size: 1.4em;
+  }
+  .hero-description {
+    font-size: 1em;
+  }
+  .get-started-btn {
+    padding: 15px 30px;
+    font-size: 1.1em;
+  }
+  .how-it-works-title, .features-title, .about-title, .contact-title {
+    font-size: 2em;
+    margin-bottom: 40px;
+  }
+  .how-it-works-grid {
+    grid-template-columns: 1fr; /* Stack columns on small screens */
+    gap: 40px;
+  }
+  .how-it-works-step.left-align,
+  .how-it-works-step.right-align,
+  .step-image-container {
+    grid-column: auto / auto; /* Reset grid column for stacking */
+    text-align: center; /* Center align text for stacked layout */
+  }
+  .how-it-works-step {
+    text-align: center; /* Ensure text is centered when stacked */
+  }
+  .step-icon-container {
+    justify-content: center; /* Center icons when stacked */
+  }
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  .feature-card {
+    padding: 20px;
+  }
+  .contact-info p {
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-top-section, .hero-how-it-works-section, .hero-features-section, .hero-about-section, .hero-contact-section {
+    padding: 40px 10px;
+    margin-bottom: 40px;
+  }
+  .hero-title {
+    font-size: 2.5em;
+  }
+  .hero-tagline {
+    font-size: 1.2em;
+  }
+  .hero-description {
+    font-size: 0.95em;
+  }
+  .get-started-btn {
+    padding: 12px 25px;
+    font-size: 1em;
+  }
+  .how-it-works-title, .features-title, .about-title, .contact-title {
+    font-size: 1.8em;
+    margin-bottom: 30px;
+  }
+  .how-it-works-step h3 {
+    font-size: 1.4em;
+  }
+  .how-it-works-step p {
+    font-size: 0.9em;
+  }
+  .feature-card h3 {
+    font-size: 1.2em;
+  }
+  .feature-card p {
+    font-size: 0.9em;
+  }
+  .contact-info p {
+    font-size: 0.95em;
+  }
+  .mockup-line-lg {
+    width: 70%;
+  }
+  .mockup-line-md {
+    width: 50%;
+  }
+  .upload-mockup-box, .select-text-mockup-box, .insights-mockup-box {
+    height: 200px;
+  }
+}
