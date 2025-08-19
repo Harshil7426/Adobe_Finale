@@ -88,5 +88,6 @@ The final model transforms the system from a **basic search tool** into a **know
 ---
 
 ## 📊 System Flowchart  
+![flow](https://github.com/user-attachments/assets/ecec2340-dfec-4577-a5da-ca53d45cf57f)
 
 
