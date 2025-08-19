@@ -4,11 +4,13 @@
   --gemini-gradient: linear-gradient(135deg, #1A2B3C, #3D5A73, #1A2B3C);
 }
 body {
-  font-family: 'inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   margin: 0;
   padding: 0;
   background: #f0f2f5;
   color: #333;
+  /* Prevent overall page scrolling */
+  overflow: hidden;
 }
 
 .pdf-page-container {
@@ -34,7 +36,8 @@ body {
   transition: all 0.4s ease;
   position: relative;
   /* Allow sidebar content to scroll vertically if it overflows */
-  overflow: hidden; /* Prevent horizontal scrolling */
+  overflow-y: auto; 
+  overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 .sidebar::before {
   content: '';
@@ -344,7 +347,8 @@ body {
   background: rgba(240, 240, 240, 0.9);
   padding: 16px;
   border-radius: 16px;
-  margin-bottom: 12px;
+  /* Removed margin-bottom here to reduce space */
+  margin-bottom: 0; 
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
   /* Make follow-on take available space and allow its content to scroll */
   flex: 1; /* Allow it to grow and fill available vertical space */
@@ -727,7 +731,8 @@ body {
   background: linear-gradient(135deg, #e0e7ff, #f3e8ff); /* Soft, inviting background gradient */
   border-radius: 18px; /* Rounded corners for the main container */
   box-shadow: 0 8px 20px rgba(0,0,0,0.1); /* Subtle shadow */
-  margin-bottom: 20px;
+  /* Removed margin-bottom here to reduce space */
+  margin-bottom: 0;
   /* Removed overflow-y: auto; and height: 100%; from here */
   box-sizing: border-box; /* Include padding in height calculation */
   flex-grow: 1; /* Allow content to grow to fill available space */
@@ -809,8 +814,14 @@ body {
   background-color: #f9f9f9;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
+  /* Removed margin-bottom here to reduce space */
+  margin-bottom: 0;
   flex-grow: 1; /* Allow content to grow to fill available space */
+  display: flex; /* Use flexbox for centering */
+  flex-direction: column; /* Stack children vertically */
+  align-items: center; /* Center horizontally */
+  justify-content: center; /* Center vertically */
+  gap: 20px; /* Space between elements */
 }
 
 .podcast-content h3 {
@@ -912,3 +923,94 @@ body {
   margin-bottom: 0;
 }
 */
+
+/* Styles for the new audio player */
+.audio-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%; /* Take full width of parent */
+  height: 100%; /* Take full height of parent */
+  background: linear-gradient(145deg, #e0e7ff, #f3e8ff); /* Soft gradient background */
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  padding: 20px;
+  box-sizing: border-box; /* Include padding in dimensions */
+}
+
+.play-pause-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #4f46e5; /* Indigo color for play/pause */
+  transition: transform 0.2s ease-in-out;
+  margin-bottom: 20px; /* Space between button and mic */
+  padding: 0; /* Remove default padding */
+  display: flex; /* Ensure the icon is centered */
+  align-items: center;
+  justify-content: center;
+  width: 60px; /* Make the button area larger */
+  height: 60px;
+  border-radius: 50%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+.play-pause-btn:hover {
+  transform: scale(1.1);
+  color: #6366f1; /* Lighter indigo on hover */
+}
+
+.play-pause-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.mic-icon {
+  color: #6366f1; /* Matching indigo color for the mic */
+  font-size: 5rem; /* Larger mic icon */
+  transition: transform 0.2s ease-in-out;
+}
+
+/* Animation for the mic when podcast is playing */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.mic-icon.playing {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Loading state for audio */
+.audio-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  font-size: 1.1em;
+}
+
+.audio-loading .spinner {
+  animation: spin 1s linear infinite;
+  font-size: 2em;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
