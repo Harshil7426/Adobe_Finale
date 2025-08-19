@@ -1,31 +1,33 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Navbar from './Navbar'; // Assuming you have a Navbar component
-import Upload from './Upload'; // Your existing Upload component
-import Hero from './hero'; // Import the new Hero component
-import './Upload.css'; // All global and upload-specific styles are now here
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import Navbar from './Navbar';
+import Upload from './Upload';
+import Hero from './hero';
+import './Upload.css';
 
-// Set smooth scroll behavior globally for hash links
 document.documentElement.style.scrollBehavior = 'smooth';
 
 function App() {
   return (
     <Router>
-      <div className="app-container">
-        {/* Navbar will be rendered outside Routes if it's a persistent header */}
-        <Navbar /> 
-
-        <Routes>
-          {/* Route for the Hero (Home) page */}
-          <Route path="/" element={<Hero />} />
-          
-          {/* Route for the Upload page */}
-          <Route path="/upload" element={<Upload />} />
-          
-          {/* About and Contact are now sections within the Hero page, no separate routes needed */}
-        </Routes>
-      </div>
+      <AppContent />
     </Router>
+  );
+}
+
+function AppContent() {
+  const location = useLocation();
+
+  return (
+    <div className="app-container">
+      {/* Conditionally render Navbar only on the home page */}
+      {location.pathname === '/' && <Navbar />}
+      
+      <Routes>
+        <Route path="/" element={<Hero />} />
+        <Route path="/upload" element={<Upload />} />
+      </Routes>
+    </div>
   );
 }
 

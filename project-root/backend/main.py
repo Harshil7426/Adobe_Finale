@@ -9,12 +9,16 @@ from fastapi.responses import FileResponse, JSONResponse
 from typing import List, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
-import model 
+import model
 import json
 import google.generativeai as genai
-import re 
+import re
 import time
 import random
+import requests # Import for making HTTP requests to Azure TTS
+import base64   # Import for base64 encoding/decoding
+import io       # Import for handling byte streams
+import struct   # Import for packing binary data into WAV header
 
 # Set the path to the 'task' directory relative to the project root.
 TASK_DIR = Path(__file__).parent.parent / "task"
@@ -44,17 +48,21 @@ class RecommendationRequest(BaseModel):
 class InsightsRequest(BaseModel):
     query_text: str
     recommendations: List[Dict[str, Any]]
-    task_name: str 
+    task_name: str
 
 class PodcastRequest(BaseModel):
     query_text: str
     recommendations: List[Dict[str, Any]]
     insights: Dict[str, Any]
-    task_name: str 
+    task_name: str
+
+class GenerateAudioRequest(BaseModel):
+    script: str
+    voice_name: str = "en-US-JennyNeural" # Default voice for single speaker
 
 # Configure the Gemini API with your API key
 # ⚠️ WARNING: This is a security risk. Do not commit this file to a public repository.
-GEMINI_API_KEY = "AIzaSyBZJlrA3Epd51H8HkhOM5JUXRtCnXDu3F8" # Your Gemini API Key
+GEMINI_API_KEY = "AIzaSyBD0fy-LU05-wJYJxLpHuYNFicu5P1PslU" # Your Gemini API Key
 
 try:
     genai.configure(api_key=GEMINI_API_KEY)
@@ -62,6 +70,12 @@ try:
 except Exception as e:
     print(f"Error configuring Gemini API: {e}")
     GEMINI_MODEL = None
+
+# Azure TTS Configuration
+AZURE_TTS_KEY = "G7NSjbrSDC5hZPPogsStCDyKRltNAmwRJYykRVZjaQeTRg2hg12BJQQJ99BHACGhslBXJ3w3AAAYACOGtUu0"
+AZURE_TTS_REGION = "centralindia"
+AZURE_TTS_ENDPOINT = f"https://{AZURE_TTS_REGION}.api.cognitive.microsoft.com/sts/v1.0/issueToken"
+AZURE_TTS_SPEECH_ENDPOINT = f"https://{AZURE_TTS_REGION}.tts.speech.microsoft.com/cognitiveservices/v1"
 
 def refine_with_gemini(text: str, query: str) -> Dict:
     """
@@ -125,6 +139,36 @@ def refine_with_gemini(text: str, query: str) -> Dict:
             }
 
 
+# Helper function to convert raw PCM audio to WAV format
+def pcm_to_wav(pcm_data: bytes, sample_rate: int = 16000, channels: int = 1, bit_depth: int = 16) -> bytes:
+    """Converts raw PCM audio data to WAV format."""
+    byte_depth = bit_depth // 8
+    data_size = len(pcm_data)
+    
+    # WAV header definition
+    # RIFF chunk
+    wav_header = b'RIFF'
+    wav_header += struct.pack('<I', 36 + data_size)  # ChunkSize
+    wav_header += b'WAVE'
+    
+    # fmt chunk
+    wav_header += b'fmt '
+    wav_header += struct.pack('<I', 16)  # Subchunk1Size (16 for PCM)
+    wav_header += struct.pack('<H', 1)   # AudioFormat (1 for PCM)
+    wav_header += struct.pack('<H', channels)
+    wav_header += struct.pack('<I', sample_rate)
+    wav_header += struct.pack('<I', sample_rate * channels * byte_depth)  # ByteRate
+    wav_header += struct.pack('<H', channels * byte_depth)  # BlockAlign
+    wav_header += struct.pack('<H', bit_depth)
+    
+    # data chunk
+    wav_header += b'data'
+    wav_header += struct.pack('<I', data_size)
+    wav_header += pcm_data
+    
+    return wav_header
+
+
 @app.post("/upload_task")
 async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] = File(...), fresh_file: UploadFile = File(...)):
     """
@@ -140,7 +184,7 @@ async def upload_task(task_name: str = Form(...), bulk_files: List[UploadFile] =
         
         if task_path.exists() and task_path.is_dir():
             raise HTTPException(status_code=400, detail=f"Task '{sanitized_task_name}' already exists. Please choose a different name.")
-        
+            
         bulk_dir = task_path / "bulk"
         fresh_dir = task_path / "fresh"
         bulk_dir.mkdir(parents=True, exist_ok=True)
@@ -264,7 +308,7 @@ async def get_insights_endpoint(request_body: InsightsRequest):
 
         # Save the insights to insights.json
         task_path = TASK_DIR / request_body.task_name
-        task_path.mkdir(parents=True, exist_ok=True) 
+        task_path.mkdir(parents=True, exist_ok=True)
         insights_path = task_path / "insights.json"
         with open(insights_path, "w") as f:
             json.dump(insights_data, f, indent=4)
@@ -279,7 +323,7 @@ async def get_insights_endpoint(request_body: InsightsRequest):
 @app.post("/get_podcast_script")
 async def get_podcast_script_endpoint(request_body: PodcastRequest):
     """
-    Generates a two-person podcast script based on selected text, recommendations, and insights using Gemini API.
+    Generates a single-person podcast script based on selected text, recommendations, and insights using Gemini API.
     Saves the podcast script to podcast.json.
     """
     try:
@@ -287,23 +331,15 @@ async def get_podcast_script_endpoint(request_body: PodcastRequest):
             return JSONResponse(content={"script": "Podcast generation failed. API not available."}, status_code=503)
         
         podcast_prompt = f"""
-        Create a script for a short, engaging, two-person podcast (1-2 minutes).
-        The podcast should be a professional and beautifully curated explanation of the user's query,
-        incorporating key findings from the provided recommendations and insights.
-
-        The podcast should feature two distinct speakers, "Host A" and "Host B", with their names
-        clearly preceding their dialogue.
-
-        Podcast Title: "AI in Tech" (or a more relevant title if context allows)
+        Create a concise, engaging, single-person podcast script (around 1-2 minutes).
+        The script should provide a natural, conversational explanation of the user's query,
+        seamlessly incorporating key findings from the provided recommendations and insights.
+        Avoid explicit opening phrases like "Welcome to the show" or closing phrases like "That's all for today."
+        Instead, make it flow like a real, continuous monologue.
 
         User's selected text: "{request_body.query_text}"
         Recommendations: {json.dumps(request_body.recommendations, indent=2)}
         Insights: {json.dumps(request_body.insights, indent=2)}
-
-        The script should have a clear introduction, body, and conclusion. Use a professional and friendly tone.
-        Example of dialogue format:
-        Host A: Welcome to the show!
-        Host B: Today, we're diving into...
         """
         response = GEMINI_MODEL.generate_content(podcast_prompt)
         podcast_script = response.text # Get the raw text from the model
@@ -320,6 +356,61 @@ async def get_podcast_script_endpoint(request_body: PodcastRequest):
     except Exception as e:
         print(f"Error generating podcast script: {e}")
         raise HTTPException(status_code=500, detail=f"Podcast generation failed: {str(e)}")
+
+@app.post("/generate_podcast_audio")
+async def generate_podcast_audio_endpoint(request_body: GenerateAudioRequest):
+    """
+    Converts a given script to audio using Azure TTS and returns base64 encoded WAV.
+    """
+    if not AZURE_TTS_KEY:
+        raise HTTPException(status_code=500, detail="Azure TTS API key not configured.")
+
+    try:
+        # Step 1: Get an authentication token
+        token_headers = {
+            'Ocp-Apim-Subscription-Key': AZURE_TTS_KEY
+        }
+        token_response = requests.post(AZURE_TTS_ENDPOINT, headers=token_headers)
+        token_response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+        access_token = token_response.text
+
+        # Step 2: Synthesize speech
+        speech_headers = {
+            'Authorization': 'Bearer ' + access_token,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': 'riff-16khz-16bit-mono-pcm', # Raw PCM output
+            'User-Agent': 'FastAPIApp'
+        }
+        # SSML for desired voice (e.g., en-US-JennyNeural)
+        ssml_body = f"""
+        <speak version='1.0' xml:lang='en-US'>
+            <voice name='{request_body.voice_name}'>
+                {request_body.script}
+            </voice>
+        </speak>
+        """
+        
+        speech_response = requests.post(
+            AZURE_TTS_SPEECH_ENDPOINT,
+            headers=speech_headers,
+            data=ssml_body.encode('utf-8')
+        )
+        speech_response.raise_for_status() # Raise HTTPError for bad responses
+
+        # Convert raw PCM data to WAV
+        wav_data = pcm_to_wav(speech_response.content, sample_rate=16000, channels=1, bit_depth=16)
+        
+        # Base64 encode the WAV data
+        audio_base64 = base64.b64encode(wav_data).decode('utf-8')
+
+        return JSONResponse(content={"audio_base64": audio_base64, "mime_type": "audio/wav"})
+
+    except requests.exceptions.RequestException as e:
+        print(f"Azure TTS API request failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Azure TTS API request failed: {str(e)}")
+    except Exception as e:
+        print(f"Error generating podcast audio: {e}")
+        raise HTTPException(status_code=500, detail=f"Podcast audio generation failed: {str(e)}")
 
 
 @app.get("/tasks")

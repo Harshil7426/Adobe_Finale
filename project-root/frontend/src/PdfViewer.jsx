@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaChevronLeft, FaChevronRight, FaFilePdf } from "react-icons/fa"; // Import FaChevronRight
+import { FaChevronLeft, FaChevronRight, FaFilePdf, FaMicrophone, FaPauseCircle, FaPlayCircle, FaSpinner } from "react-icons/fa"; // Import FaChevronRight
 import "./Pdfviewer.css"; // Ensure this CSS file exists and is linked
 import './Upload.css'; 
 const ADOBE_EMBED_API_KEY = "3c812d3e7a214d06870ddcaeeb2add1a";
@@ -12,6 +12,18 @@ const truncateText = (text, limit) => {
   }
   return text.substring(0, limit) + "...";
 };
+
+// Helper function to convert base64 to ArrayBuffer
+const base64ToArrayBuffer = (base64) => {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+};
+
 
 function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const viewerRef = useRef(null);
@@ -31,8 +43,13 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const recommendedViewerRef = useRef(null);
   const recommendationContentRef = useRef(null); // Ref for scrolling recommendations
 
-  // State to store the highlighted section text for display
-  const [currentHighlightedSection, setCurrentHighlightedSection] = useState("");
+  // New states for audio playback
+  const [audioData, setAudioData] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioContextRef = useRef(null); // useRef for AudioContext
+  const sourceNodeRef = useRef(null);   // useRef for AudioBufferSourceNode
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+
 
   console.log("Current taskName:", taskName);
 
@@ -55,6 +72,7 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
           showDownloadPDF: true,
           showPrintPDF: true,
           showZoomControl: true,
+          showRightHandPanel: false, // Ensure right panel is off for main viewer
         }
       ).then((adobeViewer) => {
         adobeViewer.getAPIs().then((apis) => {
@@ -81,6 +99,10 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
     }
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      // Clean up audio context
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
   }, [freshPdf]);
 
@@ -190,13 +212,39 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         throw new Error("Failed to fetch podcast script");
       }
       const podcastData = await podcastResponse.json();
-      setPodcast(podcastData.script);
+      setPodcast(podcastData.script); // Set the script text
 
-      setMessage("All content generated successfully.");
+      // Step 4: Generate podcast audio from the script
+      setMessage("Generating podcast audio...");
+      setIsLoadingAudio(true);
+      if (isPlaying) { // Stop any currently playing audio
+        stopAudio();
+      }
+
+      const audioPayload = {
+        script: podcastData.script,
+        voice_name: "en-US-JennyNeural" // Default voice, can be made dynamic later
+      };
+
+      const audioResponse = await fetch("http://127.0.0.1:8000/generate_podcast_audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(audioPayload),
+      });
+
+      if (!audioResponse.ok) {
+        throw new Error("Failed to generate podcast audio");
+      }
+      const audioResult = await audioResponse.json();
+      const audioBuffer = base64ToArrayBuffer(audioResult.audio_base64);
+      setAudioData(audioBuffer);
+      setMessage("Podcast audio generated successfully. Click the mic to play.");
 
     } catch (err) {
       console.error("Error generating content:", err);
-      setMessage("Error generating content.");
+      setMessage("Error generating content or audio. Please try again.");
+    } finally {
+      setIsLoadingAudio(false);
     }
   };
 
@@ -204,14 +252,12 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
   const handleOpenRecommendation = (pdfName, pageNumber, sectionContent) => {
     const recommendedUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: recommendedUrl, name: pdfName, pageNumber });
-    setCurrentHighlightedSection(sectionContent); // Set the section content for display
   };
 
   // New handler for bulk PDF list clicks
   const handleBulkPdfClick = (pdfName) => {
     const bulkUrl = `http://127.0.0.1:8000/pdfs/${taskName}/${encodeURIComponent(pdfName)}`;
     setRecommendedPdfViewerUrl({ url: bulkUrl, name: pdfName, pageNumber: 1 });
-    setCurrentHighlightedSection(""); // Clear highlighted section when opening a new bulk PDF
   };
 
   // Navigation functions for recommendation cards
@@ -224,7 +270,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
       });
     }
   };
-
 
   // New state to manage active tab
   const [activeView, setActiveView] = useState("recommendation");
@@ -240,6 +285,61 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
 
   const handleMouseLeave = () => {
     setHoverContent(null);
+  };
+
+  // Audio playback functions
+  const playAudio = async () => {
+    if (!audioData) {
+      setMessage("No audio to play. Generate podcast first.");
+      return;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    // Stop previous playback if any
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+
+    try {
+      const audioBuffer = await audioContextRef.current.decodeAudioData(audioData.slice(0)); // Create a copy
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(audioContextRef.current.destination);
+      source.start(0);
+      setIsPlaying(true);
+      sourceNodeRef.current = source;
+
+      source.onended = () => {
+        setIsPlaying(false);
+        sourceNodeRef.current = null;
+      };
+    } catch (e) {
+      console.error("Error decoding or playing audio:", e);
+      setMessage("Error playing audio.");
+      setIsPlaying(false);
+    }
+  };
+
+  const stopAudio = () => {
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+    setIsPlaying(false);
+  };
+
+  const togglePlayPause = () => {
+    if (isPlaying) {
+      stopAudio();
+    } else {
+      playAudio();
+    }
   };
 
   const renderContent = () => {
@@ -336,15 +436,28 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
           <p className="generated-output">No insights generated yet.</p>
         );
       case "podcast":
-        return podcast ? (
-          <div className="podcast-content-wrapper"> {/* New wrapper for scrollable podcast */}
+        return (
+          <div className="podcast-content-wrapper">
             <div className="podcast-content">
-              <h3>Podcast Script</h3>
-              <pre className="podcast-script-pre">{podcast}</pre>
+              <h3>Podcast Audio</h3>
+              {isLoadingAudio ? (
+                <div className="audio-loading">
+                  <FaSpinner className="spinner" />
+                  <p>Generating audio...</p>
+                </div>
+              ) : audioData ? (
+                <div className="audio-player">
+                  <button onClick={togglePlayPause} className="play-pause-btn">
+                    {isPlaying ? <FaPauseCircle size={40} /> : <FaPlayCircle size={40} />}
+                  </button>
+                  <FaMicrophone size={50} className="mic-icon" />
+                  {/* You can add a progress bar here if needed */}
+                </div>
+              ) : (
+                <p className="generated-output">Generate text and click 'Generate' to get podcast audio.</p>
+              )}
             </div>
           </div>
-        ) : (
-          <p className="generated-output">No podcast script generated yet.</p>
         );
       default:
         return null;
@@ -383,9 +496,9 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
           <button
             className={`generate-btn ${!selectedText ? "disabled" : ""}`}
             onClick={handleGenerate}
-            disabled={!selectedText}
+            disabled={!selectedText || isLoadingAudio} // Disable if audio is loading
           >
-            Generate
+            {isLoadingAudio ? 'Generating...' : 'Generate'}
           </button>
         </div>
         <div className="message-box">{message}</div>
@@ -436,12 +549,6 @@ function PdfViewer({ freshPdf, bulkPdfs = [], onBack, taskName }) {
         {recommendedPdfViewerUrl && (
           <div className="recommended-viewer-area">
             <div ref={recommendedViewerRef} id="adobe-dc-view-rec" className="viewer-box-rec"></div>
-            {currentHighlightedSection && (
-              <div className="highlighted-section-display">
-                <h4>Highlighted Section:</h4>
-                <p>{currentHighlightedSection}</p>
-              </div>
-            )}
           </div>
         )}
       </div>

@@ -371,7 +371,7 @@ html, body {
   min-height: 380px;
   max-height: 500px;
   overflow: hidden;
-  z-index: 999;
+  z-index: 1;
   position: relative; /* needed for outline effect */
 }
 
